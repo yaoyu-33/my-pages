@@ -1,0 +1,368 @@
+{
+  "verified_at_utc": "2026-10-03T16:37:58.652271+00:00",
+  "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
+  "app_sha256": "58fcb0564b527b197ecc81a4b63e7e136d2ffcd3cdc8720ee059c4edd0ac82c9",
+  "python": "3.13.14",
+  "os": "macOS-26.7-arm64-arm-64bit-Mach-O",
+  "actual_http": true,
+  "startup": "SimpleWeatherResourcesServer.run_webserver() with explicit child config; no Gym parent/Head/model process",
+  "checks": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/health",
+      "request": null,
+      "status": 200,
+      "response": {
+        "status": "ok"
+      }
+    },
+    {
+      "name": "valid city",
+      "method": "POST",
+      "path": "/get_weather",
+      "request": {
+        "city": "San Francisco"
+      },
+      "status": 200,
+      "response": {
+        "city": "San Francisco",
+        "weather_description": "The weather in San Francisco is cold."
+      }
+    },
+    {
+      "name": "missing city",
+      "method": "POST",
+      "path": "/get_weather",
+      "request": {},
+      "status": 422,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "city"
+            ],
+            "msg": "Field required",
+            "input": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "wrong city type",
+      "method": "POST",
+      "path": "/get_weather",
+      "request": {
+        "city": 7
+      },
+      "status": 422,
+      "response": {
+        "detail": [
+          {
+            "type": "string_type",
+            "loc": [
+              "body",
+              "city"
+            ],
+            "msg": "Input should be a valid string",
+            "input": 7
+          }
+        ]
+      }
+    },
+    {
+      "name": "GET is not POST",
+      "method": "GET",
+      "path": "/get_weather",
+      "request": null,
+      "status": 405,
+      "response": {
+        "detail": "Method Not Allowed"
+      }
+    },
+    {
+      "name": "unregistered route",
+      "method": "POST",
+      "path": "/get_humidity",
+      "request": {
+        "city": "San Francisco"
+      },
+      "status": 404,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "verify: weather call",
+      "method": "POST",
+      "path": "/verify",
+      "request": {
+        "responses_create_params": {
+          "input": "What's the weather in Warsaw?"
+        },
+        "response": {
+          "id": "fixture_response",
+          "created_at": 0,
+          "model": "fixture",
+          "object": "response",
+          "output": [
+            {
+              "arguments": "{\"city\":\"Warsaw\"}",
+              "call_id": "fixture_call",
+              "name": "get_weather",
+              "type": "function_call",
+              "status": "completed"
+            }
+          ],
+          "parallel_tool_calls": false,
+          "tool_choice": "auto",
+          "tools": []
+        }
+      },
+      "status": 200,
+      "response": {
+        "responses_create_params": {
+          "background": null,
+          "include": null,
+          "input": "What's the weather in Warsaw?",
+          "instructions": null,
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "metadata": null,
+          "model": null,
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt": null,
+          "reasoning": null,
+          "service_tier": null,
+          "store": null,
+          "context_management": null,
+          "conversation": null,
+          "moderation": null,
+          "prompt_cache_key": null,
+          "prompt_cache_retention": null,
+          "safety_identifier": null,
+          "stream_options": null,
+          "temperature": null,
+          "text": null,
+          "tool_choice": "auto",
+          "tools": [],
+          "top_logprobs": null,
+          "top_p": null,
+          "truncation": null,
+          "user": null,
+          "stream": null
+        },
+        "response": {
+          "id": "fixture_response",
+          "created_at": 0.0,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": null,
+          "metadata": null,
+          "model": "fixture",
+          "object": "response",
+          "output": [
+            {
+              "arguments": "{\"city\":\"Warsaw\"}",
+              "call_id": "fixture_call",
+              "name": "get_weather",
+              "type": "function_call",
+              "id": null,
+              "status": "completed",
+              "namespace": null
+            }
+          ],
+          "parallel_tool_calls": false,
+          "temperature": null,
+          "tool_choice": "auto",
+          "tools": [],
+          "top_p": null,
+          "background": null,
+          "completed_at": null,
+          "conversation": null,
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "moderation": null,
+          "previous_response_id": null,
+          "prompt": null,
+          "prompt_cache_key": null,
+          "prompt_cache_retention": null,
+          "reasoning": null,
+          "safety_identifier": null,
+          "service_tier": null,
+          "status": null,
+          "text": null,
+          "top_logprobs": null,
+          "truncation": null,
+          "usage": null,
+          "user": null
+        },
+        "reward": 1.0,
+        "mask_sample": false,
+        "failure_kind": null,
+        "failure_reason": null
+      }
+    },
+    {
+      "name": "verify: text without weather call",
+      "method": "POST",
+      "path": "/verify",
+      "request": {
+        "responses_create_params": {
+          "input": "What's the weather in Warsaw?"
+        },
+        "response": {
+          "id": "fixture_response",
+          "created_at": 0,
+          "model": "fixture",
+          "object": "response",
+          "output": [
+            {
+              "id": "fixture_message",
+              "type": "message",
+              "role": "assistant",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "I cannot check the weather.",
+                  "annotations": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": false,
+          "tool_choice": "none",
+          "tools": []
+        }
+      },
+      "status": 200,
+      "response": {
+        "responses_create_params": {
+          "background": null,
+          "include": null,
+          "input": "What's the weather in Warsaw?",
+          "instructions": null,
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "metadata": null,
+          "model": null,
+          "parallel_tool_calls": true,
+          "previous_response_id": null,
+          "prompt": null,
+          "reasoning": null,
+          "service_tier": null,
+          "store": null,
+          "context_management": null,
+          "conversation": null,
+          "moderation": null,
+          "prompt_cache_key": null,
+          "prompt_cache_retention": null,
+          "safety_identifier": null,
+          "stream_options": null,
+          "temperature": null,
+          "text": null,
+          "tool_choice": "auto",
+          "tools": [],
+          "top_logprobs": null,
+          "top_p": null,
+          "truncation": null,
+          "user": null,
+          "stream": null
+        },
+        "response": {
+          "id": "fixture_response",
+          "created_at": 0.0,
+          "error": null,
+          "incomplete_details": null,
+          "instructions": null,
+          "metadata": null,
+          "model": "fixture",
+          "object": "response",
+          "output": [
+            {
+              "id": "fixture_message",
+              "content": [
+                {
+                  "annotations": [],
+                  "text": "I cannot check the weather.",
+                  "type": "output_text",
+                  "logprobs": null
+                }
+              ],
+              "role": "assistant",
+              "status": "completed",
+              "type": "message",
+              "phase": null
+            }
+          ],
+          "parallel_tool_calls": false,
+          "temperature": null,
+          "tool_choice": "none",
+          "tools": [],
+          "top_p": null,
+          "background": null,
+          "completed_at": null,
+          "conversation": null,
+          "max_output_tokens": null,
+          "max_tool_calls": null,
+          "moderation": null,
+          "previous_response_id": null,
+          "prompt": null,
+          "prompt_cache_key": null,
+          "prompt_cache_retention": null,
+          "reasoning": null,
+          "safety_identifier": null,
+          "service_tier": null,
+          "status": null,
+          "text": null,
+          "top_logprobs": null,
+          "truncation": null,
+          "usage": null,
+          "user": null
+        },
+        "reward": 0.0,
+        "mask_sample": false,
+        "failure_kind": null,
+        "failure_reason": null
+      }
+    },
+    {
+      "name": "verify: missing response",
+      "method": "POST",
+      "path": "/verify",
+      "request": {
+        "responses_create_params": {
+          "input": "missing response"
+        }
+      },
+      "status": 422,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "response"
+            ],
+            "msg": "Field required",
+            "input": {
+              "responses_create_params": {
+                "input": "missing response"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "cleanup": {
+    "process_exited": true,
+    "port_closed": true
+  },
+  "scope": "HTTP wiring and fixture verification only; no agent/model rollout",
+  "result": "PASS"
+}

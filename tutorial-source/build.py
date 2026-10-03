@@ -35,9 +35,35 @@ snippet = '\n'.join(hermes_lines[1079:1105])
 source_manifest = {}
 import re
 
+examples = json.loads((ROOT / 'app-walkthrough.json').read_text())
+for example in examples:
+    for step in example['steps']:
+        lines = (SOURCE / step['file']).read_text().splitlines()
+        assert 1 <= step['start'] <= step['end'] <= len(lines)
+        assert all(step['start'] <= n <= step['end'] for n in step['focus'])
+        step['lines'] = lines[step['start'] - 1:step['end']]
+http_evidence = json.loads((ROOT / 'weather-http-evidence.json').read_text())
+assert http_evidence['source_sha'] == SHA and http_evidence['result'] == 'PASS'
+assert http_evidence['app_sha256'] == hashlib.sha256((SOURCE / 'resources_servers/example_single_tool_call/app.py').read_bytes()).hexdigest()
+reading_sources = sorted({step['file'] for e in examples for step in e['steps']} | {
+    'resources_servers/example_single_tool_call/tests/verifier_cases.jsonl',
+    'resources_servers/example_single_tool_call/tests/test_app.py',
+    'nemo_gym/config_types.py',
+    'nemo_gym/base_responses_api_agent.py',
+})
+reading = (ROOT / 'app-reading.html').read_text()
+reading = reading.replace('@@APP_READING_SOURCES@@', ' '.join(f'<a data-src="{p}">{html.escape(p)}</a>' for p in reading_sources))
+def inline_json(data):
+    return json.dumps(data, ensure_ascii=False).replace('<', '\\u003c')
+reading += '<script type="application/json" id="app-reading-data">' + inline_json(examples) + '</script>'
+reading += '<script type="application/json" id="weather-http-evidence">' + inline_json(http_evidence) + '</script>'
+reading += '<script type="application/json" id="weather-launcher-data">' + inline_json((ROOT / 'weather-lab.py').read_text()) + '</script>'
 template = (ROOT / 'index.template.html').read_text()
 repo_front, repo_middle = (ROOT / 'repo-chapters.html').read_text().split('<!-- INSERT_AFTER_ASYNC -->')
 template = template.replace('@@REPO_FRONT@@', repo_front).replace('@@REPO_MIDDLE@@', repo_middle)
+template = template.replace('@@APP_READING@@', reading)
+template = template.replace('@@APP_READING_CSS@@', (ROOT / 'app-reading.css').read_text())
+template = template.replace('@@APP_READING_JS@@', (ROOT / 'app-reading.js').read_text())
 parts = re.split(r'<!-- SLOT: (\w+) -->', (ROOT / 'diagrams.html').read_text())
 for name, markup in zip(parts[1::2], parts[2::2]):
     template = template.replace('@@DIAGRAM_' + name.upper() + '@@', markup.strip())
@@ -52,6 +78,8 @@ for path, line in re.findall(r'data-src="([^"]+)" data-line="(\d+)"', template):
     assert int(line) <= len((SOURCE / path).read_text().splitlines()), (path, line)
 replacements = {
     'SHA': SHA,
+    'WEATHER_FULL_SOURCE': html.escape((SOURCE / 'resources_servers/example_single_tool_call/app.py').read_text()),
+    'WEATHER_LAUNCHER': html.escape((ROOT / 'weather-lab.py').read_text()),
     'BOARD': 'https://gitlab-master.nvidia.com/yuya/how-to-run/-/blob/main',
     'ACTIVATION_SNIPPET': html.escape(snippet),
     'WEATHER_TOOL': html.escape(textwrap.dedent('\n'.join((SOURCE / 'resources_servers/example_single_tool_call/app.py').read_text().splitlines()[60:62]))),
@@ -78,6 +106,8 @@ assert not re.search(r'@@\w+@@', template)
 (ROOT / 'source-manifest.json').write_text(json.dumps({
     'source_sha': SHA, 'files_sha256': source_manifest,
     'html_sha256': hashlib.sha256(template.encode()).hexdigest(),
+    'http_evidence_sha256': hashlib.sha256((ROOT / 'weather-http-evidence.json').read_bytes()).hexdigest(),
+    'app_reading_steps': sum(len(e['steps']) for e in examples),
     'evidence_sha256': hashlib.sha256((ROOT / 'native-evidence.json').read_bytes()).hexdigest(),
 }, indent=2) + '\n')
 print(f'Built {len(template.encode()):,} bytes; {len(source_manifest)} pinned source files checked.')

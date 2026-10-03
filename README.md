@@ -6,8 +6,9 @@
 The Chinese tutorial covers the whole NeMo Gym repository, shared contracts,
 serving and async, configuration and startup, a minimal weather-tool example,
 core design, evaluation/training boundaries, and SWE-Pro × Hermes with Harbor
-comparisons. The current V4 illustrated edition adds a soft cream/mint/lavender theme, a small
-reading companion and ten responsive diagrams. It teaches native `single_agent_turn` and Hermes
+comparisons. The V5 edition adds a guided server `app.py` reading lab with 15 steps across
+Resources, Model and Agent examples, plus recorded loopback HTTP behavior. It retains a soft cream/mint/lavender theme, a small
+reading companion and twelve diagrams. It teaches native `single_agent_turn` and Hermes
 sessions, with a verified native-session smoke and direct typed request examples.
 All 14 chapters, interactions, source excerpts and embedded evidence
 from the workstation edition are preserved. Only navigation targets are adapted
@@ -30,7 +31,10 @@ native Hermes smoke used `d5f13f54cf762c7e687dd2d50d2583efe2c9b717`: reward 1,
 18/18 required tests, and an incomplete agent / final-summary HTTP 422. The smoke
 used a flat-row outer adapter before the native lifecycle; the pure typed example
 has offline configuration/schema validation, not a new model run. Publishing this site
-does not rerun or validate a new benchmark configuration. The page preserves the
+does not rerun or validate a new benchmark configuration. V5 separately launched
+the real pinned weather service through `run_webserver()` on loopback and checked
+nine HTTP behaviors, then terminated it. This uses explicit child configuration;
+it does not run the full Gym CLI/Head stack or a model/agent rollout. The page preserves the
 difference between source walkthroughs, simulations and recorded runtime evidence.
 
 ## Update
@@ -39,6 +43,11 @@ difference between source walkthroughs, simulations and recorded runtime evidenc
    Diagrams live in `diagrams.html`; `illustrated.css` and `illustrated.js` provide
    the visual theme, responsive connectors and synchronized flow highlighting.
    Keep these three files beside the builder; it embeds them in the standalone HTML.
+   The app.py lab additionally uses `app-reading.html`, `app-reading.css`,
+   `app-reading.js`, `app-walkthrough.json`, `weather-lab.py` and
+   `weather-http-evidence.json`. Source snippets are extracted from the pinned
+   checkout with their original line numbers; the new HTTP evidence is checked
+   against the weather app hash. `verify-weather-lab.py` reproduces the HTTP checks.
 2. Keep `native-evidence.json`, `native-hermes.yaml` and `prepare-native-request.py`
    beside the builder. Build against an exact checkout of the pinned Gym revision:
 

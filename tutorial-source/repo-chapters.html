@@ -114,6 +114,7 @@ async def run(task):
             history += tool_output(call.id, observation)
     return await resources.verify(task, history)</code></pre><p>这里 <code>await</code> 表示可以把等待时间让出来；同一题仍有因果顺序：拿到工具结果以后，模型才知道它。这个 SimpleAgent 对同一轮多个工具调用按 for 循环逐个 await；Collector 同时运行多道题是另一层并发。</p></details>
 <div class="checkpoint"><strong>小练习：</strong>想增加 <code>get_humidity</code>，需要改哪里？<details><summary>答案：工具协议、实现和目标判定要对齐</summary><p>在任务 tools 中声明名称 / 参数，在 Resources 注册同名路由并实现处理函数；如果任务目标变了，更新 verifier 与样例 / 测试。SimpleAgent 已有通用函数派发，通常不用为了一个新工具改循环。若只写工具 schema，没有执行端点，模型仍可能发起一个无法执行的调用。</p></details></div>
+@@APP_READING@@
 </section>
 
 <section class="chapter" id="design"><div class="section-head"><span class="section-num">07</span><div><h2>核心 design：它优先解决哪些变化？</h2><p>下面是根据源码边界总结的设计取舍，不表示所有组件都已经完全迁移到同一种模式。</p></div></div>

@@ -40,6 +40,8 @@ provenance = {
     'public_html_sha256': sha(html.encode()),
     'files_sha256': manifest['files_sha256'],
     'evidence_sha256': manifest['evidence_sha256'],
+    'http_evidence_sha256': manifest['http_evidence_sha256'],
+    'app_reading_steps': manifest['app_reading_steps'],
     'navigation_replacements': counts,
     'content_changes': 'None; only homepage and companion-page href targets changed.',
 }

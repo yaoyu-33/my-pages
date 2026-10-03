@@ -1,7 +1,7 @@
 {
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "workstation_html_sha256": "95063918d7f1fdc47035d8172ed178763b29400382ee831afccff522797ca739",
-  "public_html_sha256": "58568fb7c797f68ce7d43d1e62370f269c01160c931e21a4c8919d8086ba74cd",
+  "workstation_html_sha256": "9b913c23f96bf491e494520ca9b9bc8df958d3f75bf38bb8e6b44dd1d30fa17b",
+  "public_html_sha256": "c2490bb55a85a8c5cfd7472ebe5c2f803fbb0a73381e73ee5388284871a30df0",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",
@@ -43,6 +43,8 @@
     "resources_servers/example_single_tool_call/app.py": "58fcb0564b527b197ecc81a4b63e7e136d2ffcd3cdc8720ee059c4edd0ac82c9",
     "resources_servers/example_single_tool_call/configs/example_single_tool_call.yaml": "1a95b549be44bc9c35f1c8e90e51b222e78dd3329414168138bf07db26e2b176",
     "resources_servers/example_single_tool_call/data/example.jsonl": "883c8fd9d6fb1e1a0d31d18cb76086dde7a66f12dfe1a5805e2332f140491d65",
+    "resources_servers/example_single_tool_call/tests/test_app.py": "1989218045d1062942a475c3aff1d04cbb3244411158e07388b5f3a3ee5faed1",
+    "resources_servers/example_single_tool_call/tests/verifier_cases.jsonl": "aff32e8cc178e4b8280bfaf71e6339c24a237f0451eea8dfc401a16cc89ec7ee",
     "resources_servers/swebench_pro/app.py": "93ef37813cf7f9481fe3611f48f2286e221fcf64acc6674e8cc0aee4e14de278",
     "resources_servers/swebench_pro/verification.py": "ed6ee9582c5f8f416ea3136535f82a64b89b34efc54cc95d59c40314c26e778b",
     "responses_api_agents/anyswe_agent/README.md": "39a9d6418f93dceb92f68174b36c45a60ee01de3fcac3f3c7db76068cbc28b6c",
@@ -57,6 +59,8 @@
     "tests/unit_tests/test_server_utils.py": "cd165576f7d5266b8f592a2e0e70e3ca147cf103bff6db5a0842a88e755f013a"
   },
   "evidence_sha256": "6413b0f85f10aee8cdb8db35a10b0656ad4f50777f92871791c6329678d32cef",
+  "http_evidence_sha256": "7bf3f4117fac83f7886484313459d51eb692a2a3014d43f532e20bc84ae89e6a",
+  "app_reading_steps": 15,
   "navigation_replacements": {
     "href=\"/\"": 3,
     "href=\"/architecture/\"": 1,
