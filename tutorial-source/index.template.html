@@ -232,14 +232,14 @@ curl --fail-with-body --silent --show-error \
 const sourceBase='https://github.com/NVIDIA-NeMo/Gym/blob/@@SHA@@/';
 document.querySelectorAll('[data-src]').forEach(a=>{a.href=sourceBase+a.dataset.src+(a.dataset.line?'#L'+a.dataset.line:'');});
 const serviceInfo={
-collector:['Collector 也是一个客户端','它把数据里的任务变成具体请求，控制同时跑多少题，将返回结果写到磁盘。拿到失败也要留下 attempt 记录，避免 resume 把失败误当成功。'],
-environment:['服务可以同时扮演客户端','Environment 对 Collector 是服务端；当它向 Resources 和 Agent 发 HTTP 时又是客户端。一个 episode 会跨多个服务，不能只看最外面 HTTP 200。'],
-resources:['Resources 拥有 benchmark 的状态','它知道题目对应哪个镜像和 base commit，保存 session → sandbox 映射，最后负责 patch 提取与评分。模型没有必要看到它持有的 gold patch 或隐藏评分资产。'],
-agent:['Agent Server 和 Hermes runner 是两处代码','Agent Server 在控制侧处理 session 与 HTTP；真正运行 AIAgent、调用 shell 和修改 /app 的 runner 在任务容器里。新配方通过 session 接口调用它。'],
-sandbox:['这里的 local 是“容器本地”','sandbox_runner.py 设置 TERMINAL_ENV=local，因为 runner 已在任务容器内。terminal 本地执行就落在该容器；不是在控制侧 workstation 的 /app 执行。'],
-grader:['第二个 sandbox：只拿候选 patch 来评分','Pro verifier 从固定镜像重建环境，reset 到 base commit，应用 patch 和评分资产，再运行测试。测试的 HTTP 控制逻辑仍在 Resources Server。'],
-proxy:['Gym Model Server：HTTP 适配与关联层','上游服务地址与真实 model ID 来自配置。来自不同 episode 的请求通过 capture_key 关联。保存 Responses 形状本身不保证 token IDs 或完整 usage 都存在。'],
-inference:['推理服务器才持有权重和 GPU','请求可能在这里排队或一起 batch。Gym HTTP worker 数、episode 并发、GPU tensor parallel 数分别控制不同层；没有一一对应关系。']
+collector:['Collector 也是一个客户端','它把数据里的任务变成一个个请求，控制同时跑多少题，再把返回结果写到磁盘。失败的 attempt 也要记录下来，否则断点恢复（resume）时可能把失败当成已完成。'],
+environment:['一个服务也可以是客户端','对 Collector 来说，Environment 是服务端；它再向 Resources 和 Agent 发 HTTP 请求时，又是客户端。一个 episode 会经过多个服务，所以不能只看最外层的 HTTP 200。'],
+resources:['Resources 拥有 benchmark 的状态','它知道每道题对应哪个镜像和 base commit，记录每个 session 用的是哪个 sandbox，最后负责导出 patch 和评分。它持有的 gold patch 和隐藏评分资产，不会给模型看到。'],
+agent:['Agent Server 和 Hermes runner 跑在两个地方','Agent Server 在控制侧，负责 session 和 HTTP；真正运行 AIAgent、调用 shell、修改 /app 的 runner 在任务容器里。新配方通过 session 接口驱动它。'],
+sandbox:['这里的 local 指“容器内部”','sandbox_runner.py 设置 TERMINAL_ENV=local，因为 runner 本身就在任务容器里。所以 terminal 命令在这个容器里执行，而不是在控制侧 workstation 上。'],
+grader:['第二个 sandbox：只拿候选 patch 来评分','Pro verifier 用固定镜像重建环境，reset 到 base commit，应用候选 patch 和评分资产，再运行测试。控制这一过程的代码仍在 Resources Server 里。'],
+proxy:['Gym Model Server：负责转换和记录','上游地址和真实 model ID 来自配置；不同 episode 的请求通过 capture_key 区分。返回结果是 Responses 格式，但这不保证其中一定有 token ID 或完整的 usage。'],
+inference:['只有推理服务持有权重和 GPU','请求可能在这里排队，或被合并成一个 batch。Gym 的 HTTP worker 数、episode 并发数、GPU 的 tensor parallel 数分别控制不同的层，彼此没有一一对应关系。']
 };
 document.querySelectorAll('[data-service]').forEach(b=>b.addEventListener('click',()=>showService(b.dataset.service)));
 function showService(key){document.querySelectorAll('[data-service]').forEach(b=>{b.classList.toggle('active',b.dataset.service===key);b.setAttribute('aria-pressed',String(b.dataset.service===key));});const d=document.getElementById('service-detail');d.replaceChildren();const b=document.createElement('strong');b.textContent=serviceInfo[key][0];const p=document.createElement('p');p.textContent=serviceInfo[key][1];p.style.margin='6px 0 0';d.append(b,p);}
@@ -248,97 +248,97 @@ let asyncMode='async';
 function schedule(cap,mode){let t=0,done=0;const tasks=Array.from({length:4},(_,i)=>({i,state:'pending',due:0,segments:[],end:0}));const add=(x,start,end,type)=>x.segments.push({start,end,type});
 if(mode!=='async'){tasks.forEach(x=>{add(x,t,t+.25,'cpu');t+=.25;add(x,t,t+3,mode==='blocking'?'blocked':'io');t+=3;add(x,t,t+.25,'cpu');t+=.25;x.end=t;});return {tasks,total:t};}
 while(done<4){tasks.filter(x=>x.state==='waiting'&&x.due<=t+1e-8).forEach(x=>x.state='ready');const ready=tasks.find(x=>x.state==='ready');if(ready){add(ready,t,t+.25,'cpu');t+=.25;ready.state='done';ready.end=t;done++;continue;}const active=tasks.filter(x=>x.state==='waiting'||x.state==='ready').length;const next=tasks.find(x=>x.state==='pending');if(next&&active<cap){add(next,t,t+.25,'cpu');t+=.25;next.due=t+3;add(next,t,next.due,'io');next.state='waiting';continue;}t=Math.min(...tasks.filter(x=>x.state==='waiting').map(x=>x.due));}return {tasks,total:t};}
-function drawAsync(){const cap=Number(document.getElementById('capacity').value);document.getElementById('capacity-label').textContent=cap;const result=schedule(cap,asyncMode);const target=document.getElementById('timeline');target.replaceChildren();result.tasks.forEach(task=>{const lane=document.createElement('div');lane.className='task-lane';const label=document.createElement('span');label.textContent='请求 '+(task.i+1);const track=document.createElement('div');track.className='lane-track';track.setAttribute('aria-label',`请求 ${task.i+1}，${task.end.toFixed(2)} 秒完成`);const visible=[];let last=0;for(const seg of task.segments){if(seg.start>last)visible.push({start:last,end:seg.start,type:'queue'});visible.push(seg);last=seg.end;}visible.forEach(s=>{const x=document.createElement('div');x.className='segment '+s.type;x.style.left=(s.start/14*100)+'%';x.style.width=((s.end-s.start)/14*100)+'%';x.title=`${s.type}: ${s.start.toFixed(2)}–${s.end.toFixed(2)} s`;if(s.end-s.start>=2)x.textContent=s.type==='blocked'?'挡住 loop':s.type==='queue'?'排队':'等 I/O';track.append(x);});lane.append(label,track);target.append(lane);});const axis=document.createElement('div');axis.className='axis';for(const v of [0,3.5,7,10.5,14]){const x=document.createElement('span');x.textContent=v+'s';axis.append(x);}target.append(axis);document.getElementById('demo-total').textContent=result.total.toFixed(2)+' s';const msgs={serial:'每次 await 完才创建下一次调用；其他请求尚未被调度。调大名额不会改变这段程序的顺序。',async:'等待 I/O 时让出 event loop，名额允许其他请求前进。本地处理仍不重叠。若下游实际上只能处理一题，这里的模拟收益就不成立。',blocking:'即使打算并发，同步阻塞占住 event loop，其他协程也无法前进。async def 不能把一个阻塞调用自动变成异步。'};document.getElementById('async-explain').textContent=msgs[asyncMode];const code={serial:'# 顺序创建与等待\nfor task in tasks:\n    await run(task)',async:'# 教学伪代码：名额覆盖整次 run\nsem = asyncio.Semaphore('+cap+')\nasync def bounded(task):\n    async with sem:\n        return await run(task)\nawait asyncio.gather(*(bounded(t) for t in tasks))',blocking:'# 反例：不要在 event loop 中这样等网络\nasync def run(task):\n    response = requests.post(url, json=task)\n    # 这个同步调用期间，event loop 无法调度其他协程'};document.getElementById('async-code').textContent=code[asyncMode];document.getElementById('capacity').disabled=asyncMode!=='async';document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===asyncMode)));}
+function drawAsync(){const cap=Number(document.getElementById('capacity').value);document.getElementById('capacity-label').textContent=cap;const result=schedule(cap,asyncMode);const target=document.getElementById('timeline');target.replaceChildren();result.tasks.forEach(task=>{const lane=document.createElement('div');lane.className='task-lane';const label=document.createElement('span');label.textContent='请求 '+(task.i+1);const track=document.createElement('div');track.className='lane-track';track.setAttribute('aria-label',`请求 ${task.i+1}，${task.end.toFixed(2)} 秒完成`);const visible=[];let last=0;for(const seg of task.segments){if(seg.start>last)visible.push({start:last,end:seg.start,type:'queue'});visible.push(seg);last=seg.end;}visible.forEach(s=>{const x=document.createElement('div');x.className='segment '+s.type;x.style.left=(s.start/14*100)+'%';x.style.width=((s.end-s.start)/14*100)+'%';x.title=`${s.type}: ${s.start.toFixed(2)}–${s.end.toFixed(2)} s`;if(s.end-s.start>=2)x.textContent=s.type==='blocked'?'挡住 loop':s.type==='queue'?'排队':'等 I/O';track.append(x);});lane.append(label,track);target.append(lane);});const axis=document.createElement('div');axis.className='axis';for(const v of [0,3.5,7,10.5,14]){const x=document.createElement('span');x.textContent=v+'s';axis.append(x);}target.append(axis);document.getElementById('demo-total').textContent=result.total.toFixed(2)+' s';const msgs={serial:'上一个 await 返回后，才发起下一个请求；其余请求还没开始。调大名额也改变不了这种写法的顺序。',async:'等待 I/O 时让出 event loop，名额内的其他请求可以继续推进；本地处理仍然不会重叠。如果下游实际上一次只能处理一题，这里模拟出的加速就不存在。',blocking:'即使打算并发，一个同步阻塞调用也会占住 event loop，其他协程都动不了。写成 async def 并不会把阻塞调用自动变成异步。'};document.getElementById('async-explain').textContent=msgs[asyncMode];const code={serial:'# 顺序创建与等待\nfor task in tasks:\n    await run(task)',async:'# 教学伪代码：名额覆盖整次 run\nsem = asyncio.Semaphore('+cap+')\nasync def bounded(task):\n    async with sem:\n        return await run(task)\nawait asyncio.gather(*(bounded(t) for t in tasks))',blocking:'# 反例：不要在 event loop 中这样等网络\nasync def run(task):\n    response = requests.post(url, json=task)\n    # 这个同步调用期间，event loop 无法调度其他协程'};document.getElementById('async-code').textContent=code[asyncMode];document.getElementById('capacity').disabled=asyncMode!=='async';document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===asyncMode)));}
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{asyncMode=b.dataset.mode;drawAsync();}));document.getElementById('capacity').addEventListener('input',drawAsync);drawAsync();
 const S=(title,arrow,description,state,wait,code,why,file,line)=>({title,arrow,description,state,wait,code,why,file,line});
 const nativeSteps=[
-S('先把一道题变成可重复的输入','prepare.py → JSONL','prepare 固定数据 revision、evaluator commit 和 image digest，把 problem、requirements、interface 组成 prompt；运行脚本与 parser 嵌入 task data。','尚未创建 sandbox','下载数据 / 镜像元数据；只需预先准备','task = {instance_id, base_commit, image_digest,\n        responses_create_params, run_script, parser_script, ...}','镜像 tag 可漂移，固定 digest 和脚本版本有助于区分模型差异与环境变化。','benchmarks/swebench/pro/prepare.py',37),
-S('调用方构造 typed task / episode','HTTP client → single_agent_turn /run','调用方明确提供 TaskId、EpisodeId 和 SingleAgentTurnTaskInput；原生 Environment 先校验协议，再由 run_request 管理准入与生命周期。第 13 章给出不经过兼容入口的配置和请求。','TaskId + rollout_id + attempt 已确定','Environment 准入名额；之后才开始 episode deadline','SingleAgentTurnRequest(\n  episode_id={rollout_id, attempt},\n  task={task_id, task_input}\n)','逻辑采样和物理重试分开。这里讲的是原生协议；输入 JSONL 如何批量转换属于数据/收集层。','nemo_gym/base_environment_server.py',142),
-S('Resources 创建任务环境并保留所有权','Environment → Resources /seed_session','Resources 按 task image 创建 sandbox，准备 /app、记录 pristine untracked 文件；返回 session cookie 与 SandboxAccess。','Resources 拥有任务 sandbox A；workdir=/app','provider 创建 / readiness / 初始化命令','resources_id = new_id()\ncleanup.register(close_resources)\nseed = await resources.seed(resources_id, episode_id, task_data)','先登记 cleanup 再发请求：即使 seed 的 HTTP 响应丢失，仍知道关闭哪个 session。','environment_servers/single_agent_turn/app.py',106),
-S('Agent 建 session，借用同一个 sandbox','Environment → Agent /v1/agent_sessions','传 episode/task 身份、tool_accesses、sandbox_access。Hermes 使用 descriptor 连接 A，检查或安装固定 runtime，并上传 runner / supervisor。','Resources 拥有 A；Hermes 是借用方','connect / runtime 准备；还没进入 activation semaphore','owns_sandbox = body.sandbox_access is None\nsandbox = await AsyncSandbox.connect(descriptor, provider)\nstate = {sandbox, workdir, session_dir, owns_sandbox=False}','工作目录、镜像和任务状态由 Resources 决定。缺少访问时不会悄悄回退到宿主机执行。','responses_api_agents/hermes_agent/app.py',422),
-S('只激活一次；同样请求重试加入原任务','Environment → Agent /ng-rollout/<capture_key>/v1/responses','保存不可变输入，建立 state.task；在 Hermes semaphore 内启动容器进程。相同 session 的不同输入被拒绝。','A 中将启动一个 supervisor + Hermes worker','Agent activation 名额；然后是 sandbox.exec','if state.task is None:\n    state.activation_request = body.copy()\n    state.task = asyncio.create_task(activate())\nreturn await asyncio.shield(state.task)','网络重试不是再次采样；shield 保护共享 task，session close 才负责取消。可选 token capture 会在 URL 增加路径段。','responses_api_agents/hermes_agent/app.py',1064),
-S('Hermes 执行模型 ↔ 工具循环','Runner → Model proxy → Inference；Runner → terminal','AIAgent 请求下一步；模型返回 shell 工具调用；Hermes 在 /app 执行并把结果加入上下文，再请求模型。这里只启用 terminal toolset。','循环与实际文件修改都在 sandbox A 内','模型网络 / 推理排队，或 shell 执行；控制侧可处理别题','while not finished:\n    next_action = call_model(history)\n    observation = run_tool_in_task_sandbox(next_action)\n    history += [next_action, observation]','这是控制流示意，不是照抄源码。local terminal 在容器内部；一个 activation 可以包含很多次模型调用。','responses_api_agents/hermes_agent/sandbox_runner.py',77),
-S('结束 activation，关闭 agent session','Environment → Agent /v1/agent_sessions/close','runner 保存输出与观察；supervisor 确认进程清理。借用方清理 session 文件并 disconnect，返回 close receipt。','A 仍由 Resources 保留；agent 工作进程已确认停下','进程退出、cleanup receipt、连接断开','await agent_cleanup.close()\n# 借用路径：terminate runner → retire files → disconnect\n# close 不确认成功，则不能进入 verify','模型回复完成不代表工具后台进程停止。未确认清理时保留 partial response，返回失败而不是评分。','responses_api_agents/hermes_agent/app.py',557),
-S('从实际文件导出 patch，然后停止 A','Environment → Resources /verify','Resources 根据 cookie 找 A，git add -N + git diff base_commit；通过文件下载保留 patch 字节，再过滤镜像自带的 untracked 文件。','候选 patch 已保存；Resources 尝试 stop A','git diff / download / stop','patch = await _extract_model_patch(session_id, base_commit)\n# 下载真实 diff 字节；finally 尝试停止任务 sandbox','agent 的最终文字不参与 patch 提取。typed session 的 sandbox 被消费后，重复 verify 报错，不能伪装成一次空 patch 评分。','resources_servers/swebench_pro/app.py',464),
-S('新建 B，应用 patch，运行真正的测试','Resources → fresh verifier sandbox B','重建任务镜像，reset 到 base commit，应用候选 patch 和 task verifier 资产，跑测试并解析结果。遇到 inconclusive 才在预算内新建 grader 重试。','Resources 拥有独立评分 sandbox B','镜像启动 / 依赖 / 测试命令；最后 stop B','passed = {t.name for t in output.tests if t.status == "PASSED"}\nresolved = patch_applied and (fail_to_pass | pass_to_pass) <= passed','代码是否修好由 required-pass 规则决定。有效失败测试是 0；评分基础设施没完成要单独审计 completed/error。','resources_servers/swebench_pro/verification.py',388),
-S('返回 typed envelope，最终释放 session','Environment → HTTP client → saved result','正常返回 result 中的 verifier 结果与 agent observations；失败返回 failure。finally 在独立 cleanup 预算内关闭残留资源。客户端保存请求与响应，之后再做结果审计。','正常路径无活跃 A/B；异常残留需明确报告','最后的 cleanup / 客户端持久化','{episode_id, task_id, result, failure}\n# result 和 failure 恰有一个非空\n# caller saves native-response.json','批量 Collector 可以承担更多落盘与恢复职责；直接 HTTP 客户端不会自动生成整套 sidecar。本地 finally 也不能替代 provider TTL。','nemo_gym/base_environment_server.py',160)
+S('先把一道题变成可重复的输入','prepare.py → JSONL','prepare.py 固定数据版本、评分器 commit 和 image digest，用问题描述、requirements 和 interface 拼出 prompt；测试运行脚本和 parser 放进 task data。','尚未创建 sandbox','下载数据和镜像元数据；提前准备一次即可','task = {instance_id, base_commit, image_digest,\n        responses_create_params, run_script, parser_script, ...}','镜像 tag 指向的内容可能会变；固定 digest 和脚本版本，才能把模型的差异和环境的变化区分开。','benchmarks/swebench/pro/prepare.py',37),
+S('调用方构造 typed 请求','HTTP client → single_agent_turn /run','调用方显式提供 TaskId、EpisodeId 和 SingleAgentTurnTaskInput。原生 Environment 先校验格式，再由 run_request 管理准入和整个生命周期。第 13 章给出了完整的配置和请求。','TaskId + rollout_id + attempt 已确定','Environment 的准入名额；拿到名额后 episode 才开始计时','SingleAgentTurnRequest(\n  episode_id={rollout_id, attempt},\n  task={task_id, task_input}\n)','采样（rollout）和重试（attempt）分开记录。这里讲的是原生协议；如何把 JSONL 批量转换成请求，属于数据和收集层的工作。','nemo_gym/base_environment_server.py',142),
+S('Resources 创建任务环境并保留所有权','Environment → Resources /seed_session','Resources 用任务镜像创建 sandbox，准备好 /app，并记下镜像里原本就有的未跟踪文件；然后返回 session cookie 和 SandboxAccess。','Resources 拥有任务 sandbox A；workdir=/app','provider 创建容器、等待就绪、执行初始化命令','resources_id = new_id()\ncleanup.register(close_resources)\nseed = await resources.seed(resources_id, episode_id, task_data)','先登记 cleanup，再发请求：即使 seed 的 HTTP 响应丢了，也知道要关闭哪个 session。','environment_servers/single_agent_turn/app.py',106),
+S('Agent 建 session，借用同一个 sandbox','Environment → Agent /v1/agent_sessions','请求里带着 episode / task 身份、tool_accesses 和 sandbox_access。Hermes 用其中的 descriptor 连接 A，检查或安装固定版本的 runtime，并上传 runner 和 supervisor。','Resources 拥有 A；Hermes 是借用方','连接 sandbox、准备 runtime；此时还没进入 activation 的名额限制','owns_sandbox = body.sandbox_access is None\nsandbox = await AsyncSandbox.connect(descriptor, provider)\nstate = {sandbox, workdir, session_dir, owns_sandbox=False}','工作目录、镜像和任务状态都由 Resources 决定。如果没有拿到访问信息，Hermes 不会悄悄改在宿主机上执行。','responses_api_agents/hermes_agent/app.py',422),
+S('只激活一次：相同请求的重试会加入原来的任务','Environment → Agent /ng-rollout/<capture_key>/v1/responses','保存这次的输入（之后不再改变），创建 state.task，并在 Hermes 的名额限制内启动容器里的进程。同一个 session 收到不同的输入，会被拒绝。','A 中将启动一个 supervisor + Hermes worker','等 Agent 的 activation 名额，然后等 sandbox.exec','if state.task is None:\n    state.activation_request = body.copy()\n    state.task = asyncio.create_task(activate())\nreturn await asyncio.shield(state.task)','网络重试不等于重新采样。shield 保护共享的 task，取消由 session close 负责。开启 token capture 时，URL 里会多一段路径。','responses_api_agents/hermes_agent/app.py',1064),
+S('Hermes 执行模型 ↔ 工具循环','Runner → Model proxy → Inference；Runner → terminal','AIAgent 问模型下一步做什么；模型返回 shell 工具调用；Hermes 在 /app 里执行，把结果加入上下文，再问模型。这里只启用了 terminal 工具集。','循环与实际文件修改都在 sandbox A 内','等模型（网络和推理排队），或等 shell 执行；控制侧可以同时处理别的题','while not finished:\n    next_action = call_model(history)\n    observation = run_tool_in_task_sandbox(next_action)\n    history += [next_action, observation]','这是控制流示意，不是源码原文。local terminal 在容器内部执行；一次 activation 可以包含很多次模型调用。','responses_api_agents/hermes_agent/sandbox_runner.py',77),
+S('结束 activation，关闭 agent session','Environment → Agent /v1/agent_sessions/close','runner 保存输出和观察结果；supervisor 确认进程都已清理。作为借用方，Hermes 删除 session 文件并 disconnect，然后返回 close 收据。','A 仍由 Resources 保留；agent 工作进程已确认停下','进程退出、cleanup 收据、断开连接','await agent_cleanup.close()\n# 借用路径：terminate runner → retire files → disconnect\n# close 不确认成功，则不能进入 verify','模型说完成了，不代表工具启动的后台进程已经停止。如果无法确认清理完成，就保留部分结果并返回失败，而不是继续评分。','responses_api_agents/hermes_agent/app.py',557),
+S('从实际文件导出 patch，然后停止 A','Environment → Resources /verify','Resources 根据 cookie 找到 A，执行 git add -N 和 git diff base_commit；通过文件下载拿到 patch 的原始字节，再过滤掉镜像自带的未跟踪文件。','候选 patch 已保存；Resources 尝试 stop A','git diff、下载 patch、停止 A','patch = await _extract_model_patch(session_id, base_commit)\n# 下载真实 diff 字节；finally 尝试停止任务 sandbox','agent 最后说了什么，不影响 patch 的提取。typed session 的 sandbox 只能 verify 一次；重复 verify 会报错，而不是被当成一次空 patch 去评分。','resources_servers/swebench_pro/app.py',464),
+S('新建 B，应用 patch，运行真正的测试','Resources → fresh verifier sandbox B','用任务镜像重建环境，reset 到 base commit，应用候选 patch 和评分资产，运行测试并解析结果。只有结果无法判定（inconclusive）时，才会在预算内新建 grader 重试。','Resources 拥有独立评分 sandbox B','镜像启动、依赖安装、测试命令；最后停止 B','passed = {t.name for t in output.tests if t.status == "PASSED"}\nresolved = patch_applied and (fail_to_pass | pass_to_pass) <= passed','代码是否修好，由“必须通过的测试都通过”这条规则决定。测试真实失败记 0 分；评分基础设施没跑完，则要单独检查 completed / error。','resources_servers/swebench_pro/verification.py',388),
+S('返回 typed envelope，最终释放 session','Environment → HTTP client → saved result','成功时在 result 里返回 verifier 结果和 agent 的观察记录；失败时返回 failure。finally 在独立的 cleanup 时间预算内关闭剩余资源。客户端保存请求和响应，之后再审核结果。','正常情况下 A 和 B 都已关闭；如有残留，要明确报告','最后的 cleanup，以及客户端保存结果','{episode_id, task_id, result, failure}\n# result 和 failure 恰有一个非空\n# caller saves native-response.json','批量运行时，Collector 还会负责落盘和断点恢复；直接用 HTTP 客户端，就没有这些额外记录。本地的 finally 也不能代替 provider 的 TTL。','nemo_gym/base_environment_server.py',160)
 ];
 const observedBase='https://github.com/NVIDIA-NeMo/Gym/blob/d5f13f54cf762c7e687dd2d50d2583efe2c9b717/';
 const observedSteps=[
   {
     "title": "固定任务与运行身份",
     "arrow": "saved request → OpenLibrary row 55",
-    "description": "这次是针对原始数据第 55 行的真实模型 smoke：问题是导入校验，固定 base commit 和 image digest。这里复核的是保存下来的运行记录，不是新发起的请求。",
+    "description": "这是一次针对原始数据第 55 行的真实模型 smoke：任务是修复导入校验，base commit 和 image digest 都已固定。这里复核的是保存下来的运行记录，不是新发起的请求。",
     "state": "运行源码 d5f13f54c；episode 身份已确定",
     "wait": "读取已完成的 artifacts",
     "code": "model = nvidia/nemotron-3-super-120b-a12b\nmax_turns = 20; max_tokens = 4096",
-    "why": "外层历史驱动仍经过 flat-row 适配；以下实际执行为 native 生命周期。原生 typed 入口示例另做静态校验。",
+    "why": "这次运行的外层驱动仍经过 flat-row 适配器；之后的实际执行走的是 native 生命周期。第 13 章的原生 typed 入口示例只做了静态校验。",
     "file": "environment_servers/single_agent_turn/app.py",
     "line": 1
   },
   {
     "title": "Resources seed → Hermes seed",
     "arrow": "/seed_session → /v1/agent_sessions",
-    "description": "事件日志中这两个请求依次返回 200。Resources 创建任务 sandbox；Hermes 用 SandboxAccess 连接，并在借用的环境里准备 runtime。",
+    "description": "事件日志显示这两个请求先后返回 200。Resources 创建任务 sandbox；Hermes 用 SandboxAccess 连接进去，并在这个借来的环境里准备 runtime。",
     "state": "Resources 拥有 A，Hermes 借用 A",
     "wait": "OpenSandbox 服务与 Docker 创建 / 初始化",
     "code": "resources.seed_session → HTTP 200\nhermes.agent_sessions → HTTP 200",
-    "why": "运行源码与新 session 实现匹配；不是旧 hermes_sandboxed_agent 的 /run 编排。",
+    "why": "运行时的源码是新的 session 实现，不是旧 hermes_sandboxed_agent 的 /run 流程。",
     "file": "responses_api_agents/hermes_agent/app.py",
     "line": 1
   },
   {
     "title": "单次 activation，20 次模型与工具循环",
     "arrow": "/ng-rollout/<capture_key>/v1/responses",
-    "description": "这一次 activation 内保存了 20 次成功模型请求、20 个 terminal function_call 与 20 个结果。模型查找并修改 import_validator.py；循环都发生在任务 sandbox 内。",
+    "description": "这一次 activation 里记录了 20 次成功的模型请求、20 个 terminal function_call 和 20 个返回结果。模型找到并修改了 import_validator.py；整个循环都在任务 sandbox 里进行。",
     "state": "A 内工作树被实际修改",
     "wait": "NIM 推理，shell 工具执行",
     "code": "terminal: find /app …\nterminal: cat /app/openlibrary/plugins/importapi/import_validator.py",
-    "why": "一次 Environment agent turn 指一次 activation，不意味着只采样一个模型回复。",
+    "why": "Environment 的一个 agent turn 指一次 activation，并不是只让模型回复一次。",
     "file": "responses_api_agents/hermes_agent/sandbox_runner.py",
     "line": 1
   },
   {
-    "title": "达到 turn 上限，最终摘要 422",
+    "title": "达到轮数上限，最终摘要请求返回 422",
     "arrow": "Hermes → model proxy → HTTP 422",
-    "description": "第 21 个模型请求用于最终摘要，被代理以 422 拒绝。保存 response.status=incomplete；已有文件改动与工具记录仍然保留，没有冒充自然完成。",
+    "description": "第 21 个模型请求是为了生成最终摘要，被模型代理以 422 拒绝。结果记为 response.status=incomplete；已经做出的文件修改和工具记录都保留下来，没有被当作正常结束。",
     "state": "patch 候选仍在 A 的工作树",
-    "wait": "失败已结束；不再生成更多工具操作",
+    "wait": "无；不会再有新的工具调用",
     "code": "accepted_model_requests = 20\nfinal_summary_http_status = 422\nagent_status = incomplete",
-    "why": "到达模型预算、自然语言摘要失败与补丁正确性是不同信号，应分别报告。",
+    "why": "用完模型轮数、摘要失败、补丁是否正确，是三个不同的信号，应该分别报告。",
     "file": "responses_api_agents/hermes_agent/sandbox_runner.py",
     "line": 1
   },
   {
     "title": "先关闭 agent，再进入 verify",
     "arrow": "/v1/agent_sessions/close → /verify",
-    "description": "close 的结束时间 1790820355.4889352 早于 verify 开始时间 1790820355.4959767。事件表给出了顺序证据，Resources 之后仍可导出文件修改。",
+    "description": "close 的结束时间 1790820355.4889352 早于 verify 的开始时间 1790820355.4959767，事件表证明了这个顺序。此时 Resources 仍然可以导出文件修改。",
     "state": "Hermes session 关闭；Resources 仍拥有 A",
     "wait": "已经保存的 close / verify 事件",
     "code": "agent_close.end < resources_verify.begin",
-    "why": "清理 agent 进程与销毁任务 sandbox 分开，才能安全提取最后的 patch。",
+    "why": "清理 agent 的进程和销毁任务 sandbox 是分开的两步，这样才能安全地提取最终的 patch。",
     "file": "environment_servers/single_agent_turn/app.py",
     "line": 1
   },
   {
-    "title": "导出 11,273-byte patch，在干净环境评分",
+    "title": "导出 11,273 字节的 patch，在干净环境中评分",
     "arrow": "Resources git diff → fresh grader",
-    "description": "原始 patch.diff 与 episode.model_patch 字节一致；原始 output.json 与保存的 test_results 一致。18 个测试全部 PASSED，包括 3 个 FAIL_TO_PASS 和 15 个 PASS_TO_PASS。",
-    "state": "任务 A 被消费；评分用独立 sandbox",
+    "description": "原始 patch.diff 与 episode.model_patch 逐字节相同；原始 output.json 与保存的 test_results 一致。18 个测试全部 PASSED，其中 3 个 FAIL_TO_PASS、15 个 PASS_TO_PASS。",
+    "state": "任务 sandbox A 已用完；评分用独立的 sandbox",
     "wait": "测试与 parser；结束后清理",
     "code": "reward = 1\nevaluation_completed = true\nrequired_passed = 18 / 18",
-    "why": "这证明实际 patch 通过指定评分器；不能推出整个仓库测试通过或 benchmark 总体准确率。",
+    "why": "这证明实际 patch 通过了指定的评分测试；不能由此推出整个仓库的测试都通过，也不代表 benchmark 的总体准确率。",
     "file": "resources_servers/swebench_pro/app.py",
     "line": 1
   },
   {
-    "title": "Resources close，留下可审计结果",
+    "title": "Resources close，留下可审核的结果",
     "arrow": "/close_session → saved artifacts",
-    "description": "Resources close 返回 200，Environment /run 返回 200。保存的 cleanup receipt 中 remaining_before_fallback=[]；本教程没有重新查询历史容器。",
+    "description": "Resources close 返回 200，Environment /run 也返回 200。保存的 cleanup 收据中 remaining_before_fallback=[]，即 fallback 前没有残留；本教程没有重新查询历史容器。",
     "state": "历史收据没有 fallback 前残留",
     "wait": "只读结果与源码 hash 核对",
     "code": "agent_status = incomplete\nreward = 1; evaluation_completed = true",
-    "why": "5 个关键源码文件 hash 对齐运行 pin。没有旧 Hermes /run 调用，也不能把这份记录当作第 13 章纯 typed HTTP 入口的验收。",
+    "why": "5 个关键源码文件的 hash 与运行时的版本一致。整个过程没有调用旧的 Hermes /run；但这份记录也不能当作第 13 章纯 typed 入口的验收。",
     "file": "nemo_gym/base_environment_server.py",
     "line": 1
   }

@@ -2,7 +2,7 @@
   {
     "id": "resources",
     "label": "01 · Resources 小天气",
-    "description": "从输入类型、业务函数到端口监听，完整读一间小服务。",
+    "description": "从输入类型、业务函数一直读到端口监听，完整看一个小服务。",
     "steps": [
       {
         "title": "配置和请求，是两张不同的表",
@@ -18,12 +18,12 @@
           39
         ],
         "explain": [
-          "Config 是服务启动时读取的设置；这里的 pass 表示没有新增设置，父类仍然定义了 host、port、entrypoint、name。",
-          "GetWeatherRequest 是每一次 HTTP 请求的 JSON 形状。city: str 告诉 FastAPI/Pydantic：需要一个字符串字段。GetWeatherResponse 定义返回的数据形状。"
+          "Config 是服务启动时读取的设置。这里只写了 pass，表示没有新增字段；host、port、entrypoint、name 由父类定义。",
+          "GetWeatherRequest 描述每次 HTTP 请求的 JSON 结构：city: str 告诉 FastAPI / Pydantic，请求里必须有一个字符串字段 city。GetWeatherResponse 描述返回的数据结构。"
         ],
-        "mental": "配置管“这间店怎么开”；request body 管“这位客人要什么”。",
-        "question": "city 缺了，会先进入 get_weather 再报错吗？",
-        "answer": "这个 HTTP 路径里，FastAPI 会先校验 body；缺 city 时返回 422，业务函数还没执行。类型提示本身不让任意 Python 调用自动做运行时校验。"
+        "mental": "配置决定“这家店怎么开”；请求 body 决定“这位客人要什么”。",
+        "question": "如果请求里缺了 city，会先进入 get_weather 再报错吗？",
+        "answer": "不会。走 HTTP 时，FastAPI 会先校验 body，缺 city 直接返回 422，业务函数根本不会执行。注意：类型注解本身不会让普通的 Python 调用自动做运行时校验。"
       },
       {
         "title": "先读业务函数：输入 → 返回值",
@@ -35,15 +35,15 @@
           62
         ],
         "explain": [
-          "self 是当前服务对象；body 已经是校验后的 GetWeatherRequest，所以可以写 body.city。返回的 Pydantic 对象会通过 HTTP 层序列化成 JSON。",
-          "这个函数返回固定的 cold，没有查询天气网站。它没有耗时 I/O，也没有 await；async def 只是让它具有异步处理函数的形状，并不会自动使 CPU 工作并行。"
+          "self 是当前的服务对象；body 已经是校验过的 GetWeatherRequest，所以可以直接写 body.city。返回的 Pydantic 对象会由 HTTP 层转成 JSON。",
+          "这个函数总是返回 cold，并没有查询天气网站。它没有耗时的 I/O，也没有 await；写成 async def 只是符合异步处理函数的形式，不会让 CPU 工作自动并行。"
         ],
-        "mental": "先别想网络：它就是“给一个城市，构造一份观察”。",
-        "question": "只写这个函数，外部就能 POST /get_weather 了吗？",
-        "answer": "还不能。你还需要把函数注册成路由，并让 HTTP server 开始监听端口。"
+        "mental": "先别想网络：它只是“给一个城市，返回一份观察结果”。",
+        "question": "只写了这个函数，外部就能 POST /get_weather 了吗？",
+        "answer": "还不能。还要把函数注册成路由，并让 HTTP 服务开始监听端口。"
       },
       {
-        "title": "接上门牌：注册 POST 路由",
+        "title": "挂上门牌：注册 POST 路由",
         "file": "resources_servers/example_single_tool_call/app.py",
         "start": 50,
         "end": 59,
@@ -55,16 +55,16 @@
           59
         ],
         "explain": [
-          "这里的 server 是带 config 和 server_client 的 Python 对象；app 是保存 HTTP 路由和中间件的 FastAPI 应用。它们不是同一个对象。",
-          "super().setup_webserver() 先拿到公共 Resources 应用。app.post(\"/get_weather\")(self.get_weather) 再把这个实例的处理函数注册到路由表；它此时不执行 get_weather。",
-          "这和 @app.post(\"/get_weather\") 装饰一个函数是同一种注册机制。写成两次调用，方便注册类实例已经绑定好的 self.get_weather。"
+          "这里的 server 是带 config 和 server_client 的 Python 对象；app 是保存 HTTP 路由和中间件的 FastAPI 应用。两者不是同一个对象。",
+          "super().setup_webserver() 先拿到公共的 Resources 应用；app.post(\"/get_weather\")(self.get_weather) 再把当前实例的处理函数登记到路由表。登记时并不会执行 get_weather。",
+          "这和用 @app.post(\"/get_weather\") 装饰函数是同一种机制。拆成两次调用，是为了登记已经绑定了 self 的 self.get_weather。"
         ],
-        "mental": "函数是店员，路由是门牌；setup_webserver 负责把门牌接到店员。",
+        "mental": "函数是店员，路由是门牌；setup_webserver 负责把门牌接到店员身上。",
         "question": "把 super().setup_webserver() 换成 FastAPI() 会怎样？",
-        "answer": "可以得到空的新应用，但会丢掉父类在此处注册的 /verify、session 等路由和中间件。除非你有意重建这些能力，否则应该复用父类返回的 app。"
+        "answer": "会得到一个空的新应用，丢掉父类注册的 /verify、session 等路由和中间件。除非你打算自己重建这些功能，否则应该沿用父类返回的 app。"
       },
       {
-        "title": "钻进 super：评分路由从这里来",
+        "title": "进入 super：评分路由在这里注册",
         "file": "nemo_gym/base_resources_server.py",
         "start": 235,
         "end": 258,
@@ -81,13 +81,13 @@
           258
         ],
         "explain": [
-          "天气 app.py 没写 app.post(\"/verify\")，因为这一步在 SimpleResourcesServer 中完成。它还注册 session、聚合指标和 reverify 查询。",
-          "这里的 self.verify 会按当前实例的 Python 方法解析顺序，找到 SimpleWeatherVerifier.verify。trace 与 judge_failsafe 包在外面，公共层继续负责观测和评分故障边界。",
-          "所以阅读 app.py 时，看到一个重要方法来自继承，就沿着基类追一次：很多“消失的路由”其实集中注册在那里。"
+          "天气的 app.py 没有写 app.post(\"/verify\")，因为这一步在 SimpleResourcesServer 里完成。它还注册了 session、汇总指标和重新评分查询等路由。",
+          "这里的 self.verify 会按 Python 的方法解析顺序，找到 SimpleWeatherVerifier.verify。外层包着的 trace 和 judge_failsafe，由公共层负责观测和评分失败的处理。",
+          "所以读 app.py 时，如果某个重要方法来自继承，就顺着基类找一次：很多“看不见的路由”都集中注册在那里。"
         ],
-        "mental": "子类提供具体行为，基类把它接到共同的 HTTP 接口。",
-        "question": "为什么 SimpleWeatherVerifier 能不继承 HTTP server？",
-        "answer": "评分函数可以独立组织和测试；服务类通过组合继承把它与 Resources 的 HTTP 能力装在同一个对象里。"
+        "mental": "子类提供具体行为，基类把它接到统一的 HTTP 接口上。",
+        "question": "为什么 SimpleWeatherVerifier 可以不继承 HTTP 服务类？",
+        "answer": "评分逻辑可以单独编写和测试；服务类通过多继承，把它和 Resources 的 HTTP 能力组合到同一个对象里。"
       },
       {
         "title": "读 verify：reward 到底测了什么",
@@ -100,16 +100,16 @@
           47
         ],
         "explain": [
-          "body.response.output 是 agent 的结构化输出轨迹。any(...) 只检查有没有名字等于 get_weather 的 function_call；float(True) 是 1.0，float(False) 是 0.0。",
-          "body.model_dump() 保留已有输入与响应字段，再加 reward 构成 BaseVerifyResponse。它不会重新调用天气工具。",
-          "这个教学评分器不证明城市选对了、工具真的执行成功了，也不证明最终回答好。读懂评分条件，才知道 reward=1 能支持多强的结论。"
+          "body.response.output 是 agent 的结构化输出轨迹。any(...) 只检查其中有没有名为 get_weather 的 function_call；float(True) 是 1.0，float(False) 是 0.0。",
+          "body.model_dump() 保留原有的输入和响应字段，再加上 reward，组成 BaseVerifyResponse。它不会重新调用天气工具。",
+          "这个教学评分器不能说明城市选对了、工具确实执行成功了，也不能说明最终回答好。读懂评分条件，才知道 reward=1 到底能说明多少。"
         ],
-        "mental": "工具负责“做了什么”；verifier 定义“怎样算完成目标”。",
-        "question": "只有一句天气描述，没有 function_call，会拿到 1 吗？",
-        "answer": "不会。仓库的 text without weather call fixture 返回 0；下面的实测记录也验证了这一点。"
+        "mental": "工具负责“做了什么”；verifier 负责定义“怎样算完成”。",
+        "question": "只有一句天气描述、没有 function_call，会得到 1 分吗？",
+        "answer": "不会。仓库里的 text without weather call 测试用例返回 0；下面的真实 HTTP 记录也验证了这一点。"
       },
       {
-        "title": "把评分器从服务里拿出来测",
+        "title": "不启动服务，单独测评分器",
         "file": "resources_servers/example_single_tool_call/app.py",
         "start": 65,
         "end": 69,
@@ -120,15 +120,15 @@
           68
         ],
         "explain": [
-          "VERIFIER_FIXTURE 描述如何创建评分器、用哪个请求模型校验输入，以及去哪读 fixture JSONL。它不是一条新 HTTP 路由。",
-          "仓库测试调用 exercise_verifier_fixture 检查这些案例。本教程另外启动真实 HTTP 服务，把同一组案例发给 /verify，观察路由、校验和评分接起来后的结果。"
+          "VERIFIER_FIXTURE 说明了如何创建评分器、用哪个请求模型校验输入、从哪里读取测试用例 JSONL。它不是一个新的 HTTP 路由。",
+          "仓库测试用 exercise_verifier_fixture 检查这些用例。本教程另外启动了真实的 HTTP 服务，把同一组用例发给 /verify，确认路由、校验和评分连起来之后的结果。"
         ],
-        "mental": "纯函数/对象测试和 HTTP 检查回答不同的问题，可以互相补充。",
-        "question": "fixture 的 server_factory 为什么是 SimpleWeatherVerifier？",
-        "answer": "这些 fixture 只需要评分逻辑，不必启动端口、Head 或模型。HTTP 层的行为需要另一层检查。"
+        "mental": "直接测函数和通过 HTTP 测，回答的是不同的问题，两者互补。",
+        "question": "测试用例的 server_factory 为什么是 SimpleWeatherVerifier？",
+        "answer": "这些用例只需要评分逻辑，不必启动端口、Head 或模型。HTTP 层的行为要另外检查。"
       },
       {
-        "title": "文件末尾：把启动交给公共底座",
+        "title": "文件末尾：把启动交给公共代码",
         "file": "resources_servers/example_single_tool_call/app.py",
         "start": 72,
         "end": 73,
@@ -137,15 +137,15 @@
           73
         ],
         "explain": [
-          "直接执行这个 app.py 时，__name__ 为 \"__main__\"，会调用继承来的 run_webserver。它是 classmethod：先有类，再在公共启动函数里创建服务实例。",
-          "因此这里没有手写 uvicorn.run，也没有全局 app = FastAPI()。这种写法依赖 Gym 提供的运行配置；裸跑 python app.py 并不会凭空知道应读哪一个配置实例。"
+          "直接运行这个 app.py 时，__name__ 等于 \"__main__\"，于是调用继承来的 run_webserver。它是一个 classmethod：先有类，再由公共启动函数创建服务实例。",
+          "所以这里没有手写 uvicorn.run，也没有全局的 app = FastAPI()。这种写法依赖 Gym 提供的运行配置；直接裸跑 python app.py，它并不知道该读哪个配置实例。"
         ],
         "mental": "app.py 决定“我是谁”；公共启动函数负责把这个类变成服务进程。",
-        "question": "import 这个模块，会因为这两行自动启动端口吗？",
-        "answer": "普通 import 时不会进入 __main__ 分支。本页的独立练习脚本会显式调用这个类的 run_webserver。"
+        "question": "import 这个模块时，这两行会自动启动端口吗？",
+        "answer": "不会。普通 import 不会进入 __main__ 分支。本页的练习脚本会显式调用这个类的 run_webserver。"
       },
       {
-        "title": "真正开门：读取配置，构造对象和 app",
+        "title": "真正开门：读取配置，创建对象和 app",
         "file": "nemo_gym/server_utils.py",
         "start": 1332,
         "end": 1357,
@@ -158,23 +158,23 @@
           1357
         ],
         "explain": [
-          "global_config_dict 是这次运行的整体配置；load_config_from_global_config 按 NEMO_GYM_CONFIG_PATH 取出实例，并用类上 config 的类型做校验。",
-          "随后构造 ServerClient，再执行 cls(config=..., server_client=...)。cls 在此是 SimpleWeatherResourcesServer，所以调用 server.setup_webserver() 会回到刚才天气类的实现。",
-          "这个片段后面还会添加健康检查、异常/取消/观测机制，最后用配置里的 host 和 port 调用 uvicorn.run。只有监听开始了，别的进程才有 HTTP 地址可以访问。"
+          "global_config_dict 是这次运行的完整配置；load_config_from_global_config 按 NEMO_GYM_CONFIG_PATH 取出当前实例的配置，并用类上声明的 config 类型校验。",
+          "接着创建 ServerClient，再执行 cls(config=..., server_client=...)。这里的 cls 是 SimpleWeatherResourcesServer，所以调用 server.setup_webserver() 会回到刚才读过的天气类实现。",
+          "这段代码之后，还会加上健康检查和异常、取消、观测等机制，最后用配置里的 host 和 port 调用 uvicorn.run。只有开始监听之后，其他进程才能通过 HTTP 访问它。"
         ],
-        "mental": "读设置 → new 服务对象 → 注册路由 → 公共机制 → Uvicorn 监听。",
-        "question": "调用 setup_webserver() 本身，会打开一个网络端口吗？",
-        "answer": "不会。它返回 FastAPI/ASGI 应用；Uvicorn 才负责接受 TCP/HTTP 请求。下面的进程图把这两个阶段分开了。"
+        "mental": "读配置 → 创建服务对象 → 注册路由 → 加公共机制 → Uvicorn 监听。",
+        "question": "调用 setup_webserver() 本身会打开网络端口吗？",
+        "answer": "不会。它只返回一个 FastAPI（ASGI）应用；接收 TCP / HTTP 请求的是 Uvicorn。下面的进程图把这两个阶段分开画了。"
       }
     ]
   },
   {
     "id": "model",
     "label": "02 · Model 转接站",
-    "description": "同一套开店方法，换成“替别人问模型”的服务。以下只读源码，不实际请求模型。",
+    "description": "同样的搭法，换成一个“替别人问模型”的服务。这里只读源码，不实际请求模型。",
     "steps": [
       {
-        "title": "模型配置：要连谁、允许多少请求",
+        "title": "模型配置：连到哪里、允许多少并发",
         "file": "responses_api_models/openai_model/app.py",
         "start": 36,
         "end": 52,
@@ -186,15 +186,15 @@
           45
         ],
         "explain": [
-          "这些是服务启动设置：上游 base URL、鉴权和真实 model ID。它们和一次用户输入的 prompt 不属于同一层。",
-          "max_concurrent_requests 是当前 Model Server 进程的并发上限；None 表示这里不限制。它不是 GPU batch size，也不是整个集群所有 worker 的总配额。"
+          "这些是服务启动时的设置：上游 base URL、鉴权信息和真实的 model ID。它们和某次用户输入的 prompt 不是一回事。",
+          "max_concurrent_requests 是这个 Model Server 进程的并发上限，None 表示不限制。它不是 GPU 的 batch size，也不是整个集群所有 worker 的总配额。"
         ],
-        "mental": "配置里的 endpoint 指向真正做推理的上游。",
-        "question": "更改这个字段，会自动给上游增加 GPU 吗？",
-        "answer": "不会。这里只改变此进程放行请求的数量；推理服务的容量仍由上游部署决定。"
+        "mental": "配置里的 endpoint 指向真正做推理的上游服务。",
+        "question": "改这个字段，会让上游多出 GPU 吗？",
+        "answer": "不会。它只改变这个进程放行多少请求；推理服务的容量仍由上游的部署决定。"
       },
       {
-        "title": "构造时准备可复用的客户端",
+        "title": "创建时准备好可复用的客户端",
         "file": "responses_api_models/openai_model/app.py",
         "start": 65,
         "end": 82,
@@ -208,15 +208,15 @@
           82
         ],
         "explain": [
-          "model_post_init 是 Pydantic 对象构造完成后的 hook。它创建可复用的 NeMoGymAsyncOpenAI 客户端和 semaphore，之后许多请求共用它们。",
-          "这里“准备客户端”不等于已经生成答案。实际请求发生在 responses 的 await 中。NeMoGymAsyncOpenAI 使用 Gym 的传输封装；不要把每个请求都重新建 HTTP 客户端作为默认写法。"
+          "model_post_init 是 Pydantic 对象创建完成后调用的钩子。它创建一个可复用的 NeMoGymAsyncOpenAI 客户端和一个 semaphore，之后的所有请求都共用它们。",
+          "准备好客户端，不代表已经生成了答案；真正的请求发生在 responses 里的 await。NeMoGymAsyncOpenAI 使用 Gym 自己的传输层；不要默认每个请求都新建一个 HTTP 客户端。"
         ],
-        "mental": "启动时准备连接能力；请求到来时再用它。",
-        "question": "为什么不把 _client 放在 responses 里每次创建？",
-        "answer": "那样会重复初始化，妨碍连接复用；这里把进程级依赖放到服务实例上，生命周期更明确。"
+        "mental": "启动时准备好连接能力；请求来了再使用。",
+        "question": "为什么不在 responses 里每次新建 _client？",
+        "answer": "那样会反复初始化，也没法复用连接。把进程级的依赖放在服务实例上，生命周期更清楚。"
       },
       {
-        "title": "一次模型请求：等名额 → 等回信",
+        "title": "一次模型请求：先等名额，再等回复",
         "file": "responses_api_models/openai_model/app.py",
         "start": 84,
         "end": 95,
@@ -228,16 +228,16 @@
           95
         ],
         "explain": [
-          "先把请求变成字典，结合 extra_body，并把 model 替换为部署配置中的真实 model ID。可选分支还会过滤 reasoning 输入项。",
-          "async with self._semaphore 获取并发名额，退出时释放；await self._client.create_response(...) 等上游 HTTP 响应，让 event loop 有机会处理其他任务。",
-          "上游的字典最后校验成 NeMoGymResponse。这个代理进程主要做协议与 I/O，模型权重通常在另一侧的推理服务中。"
+          "先把请求转成字典，合并 extra_body，并把 model 字段换成部署配置里的真实 model ID。可选分支还会过滤掉 reasoning 输入项。",
+          "async with self._semaphore 获取一个并发名额，退出时释放；await self._client.create_response(...) 等待上游的 HTTP 响应，期间 event loop 可以处理别的任务。",
+          "最后把上游返回的字典校验成 NeMoGymResponse。这个代理进程主要做协议转换和 I/O；模型权重通常在另一侧的推理服务里。"
         ],
-        "mental": "有两处可能等待：本地并发名额、上游推理响应。",
-        "question": "看到 async with，就说明这次请求没有排队吗？",
-        "answer": "不。semaphore 的 acquire 本身就可能等待。它限制同时在路上的请求，不能消除上游排队。"
+        "mental": "这里有两处可能要等：本地的并发名额，和上游的推理响应。",
+        "question": "看到 async with，是不是说明这个请求不用排队？",
+        "answer": "不是。获取 semaphore 本身就可能要等。它只限制同时在途的请求数，消除不了上游的排队。"
       },
       {
-        "title": "Model app.py 没写路由，去哪找？",
+        "title": "Model 的 app.py 里没写路由，去哪找？",
         "file": "nemo_gym/base_responses_api_model.py",
         "start": 250,
         "end": 269,
@@ -249,19 +249,19 @@
           266
         ],
         "explain": [
-          "公共 SimpleResponsesAPIModel 注册 /v1/chat/completions、/v1/responses 和 /v1/messages。这里的 responses 先进入 responses_dispatch，再由公共层处理协议和调用具体实现。",
-          "所以不能仅从子类没出现 app.post 就判断它没有 HTTP 接口；先看它继承的基类。也别把这个 Model 的 /v1/responses 和 Agent 的同名接口混为一谈。"
+          "公共的 SimpleResponsesAPIModel 注册了 /v1/chat/completions、/v1/responses 和 /v1/messages。请求先进入 responses_dispatch，由公共层处理协议后，再调用这里的具体实现。",
+          "所以不能因为子类里没出现 app.post，就认为它没有 HTTP 接口，要先看它继承的基类。另外，不要把 Model 的 /v1/responses 和 Agent 的同名接口混为一谈。"
         ],
-        "mental": "相同路径可以出现在不同端口；它们背后的工作范围不同。",
+        "mental": "同一个路径可以出现在不同的服务上，但背后做的事情不同。",
         "question": "Agent 的 /v1/responses 是不是也只问一次模型？",
-        "answer": "不一定。Agent 内部可以执行很多轮模型与工具循环；切换到下一份 app.py 看看。"
+        "answer": "不一定。Agent 内部可以跑很多轮模型和工具的循环。切换到下一份 app.py 看看。"
       }
     ]
   },
   {
     "id": "agent",
     "label": "03 · Agent 跑腿员",
-    "description": "读局部调用，理解一个服务怎样把请求发给另外两个服务。不是新跑的 agent rollout。",
+    "description": "读几段关键调用，看一个服务怎样把请求转发给另外两个服务。这不是一次新的 agent 运行。",
     "steps": [
       {
         "title": "引用两个服务：模型和 Resources",
@@ -274,12 +274,12 @@
           65
         ],
         "explain": [
-          "resources_server 与 model_server 是类型化的服务引用，里面的 name 对应 YAML 中的实例名。它们不是直接塞进来的 Python 服务对象。",
-          "因此更换配置引用可以换后端，但工具名、协议和任务评分仍要互相匹配。max_steps 控制循环范围，不是每次 HTTP 请求的连接超时。"
+          "resources_server 和 model_server 是带类型的服务引用，其中的 name 对应 YAML 里的实例名。它们不是直接塞进来的 Python 服务对象。",
+          "所以改配置里的引用就能换后端，但工具名、协议和任务评分仍然要互相匹配。max_steps 限制的是循环的轮数，不是单个 HTTP 请求的超时。"
         ],
-        "mental": "Agent 是服务，也会作为客户端去调用其他服务。",
-        "question": "server_client.post 是 Python 跨对象直接调用吗？",
-        "answer": "不是。ServerClient 按配置解析目标地址，序列化请求，再发送异步 HTTP。"
+        "mental": "Agent 是一个服务，同时也作为客户端去调用其他服务。",
+        "question": "server_client.post 是直接调用另一个 Python 对象吗？",
+        "answer": "不是。ServerClient 按配置找到目标地址，把请求序列化，再发出异步 HTTP 请求。"
       },
       {
         "title": "向模型发请求，并检查响应",
@@ -297,12 +297,12 @@
           127
         ],
         "explain": [
-          "把 config.model_server.name 和 model_url_path 交给 ServerClient，就能找到目标实例和路由；new_body 是本轮上下文，cookies 把会话信息带过去。",
-          "await 等到 HTTP 响应之后，还需要检查状态、读取 JSON、按 NeMoGymResponse 校验。请求成功返回一个对象，不自动等于得到了合法的模型结果。"
+          "把 config.model_server.name 和 model_url_path 交给 ServerClient，就能找到目标实例和路由；new_body 是这一轮的上下文，cookies 把会话信息一起带过去。",
+          "await 拿到 HTTP 响应后，还要检查状态码、读取 JSON，并按 NeMoGymResponse 校验。请求返回了一个对象，不代表拿到了合法的模型结果。"
         ],
-        "mental": "网络响应、HTTP 成功、协议合法，是三道不同的检查。",
-        "question": "为什么不把 URL 硬编码进这个循环？",
-        "answer": "引用由组合配置管理，Agent 可以接不同模型服务；这个循环就能专注于任务执行。"
+        "mental": "收到网络响应、HTTP 成功、格式合法，是三道不同的检查。",
+        "question": "为什么不把 URL 直接写死在这个循环里？",
+        "answer": "服务引用由配置统一管理，Agent 就能接不同的模型服务，这个循环只需要专注于执行任务。"
       },
       {
         "title": "把 tool call 变成真正的工具请求",
@@ -319,13 +319,13 @@
           223
         ],
         "explain": [
-          "模型输出给出工具名与 JSON 参数。解析成功后，Agent 用工具名构造 /get_weather 这样的路径，把参数发给 Resources。",
-          "await api_response.content.read() 取回工具观察；随后循环会把它包装成带同一个 call_id 的 function_call_output，放回模型上下文。",
-          "这里允许 Resources 的错误作为模型可见的工具输出，而前一段模型请求使用 raise_for_status。这体现两类失败在 agent 循环中的不同处理方式。"
+          "模型的输出给出了工具名和 JSON 参数。解析成功后，Agent 用工具名拼出 /get_weather 这样的路径，把参数发给 Resources。",
+          "await api_response.content.read() 取回工具的观察结果；之后循环会把它包装成带相同 call_id 的 function_call_output，放回模型的上下文。",
+          "注意这里允许 Resources 的错误作为工具输出交给模型看，而前面的模型请求用的是 raise_for_status。这说明两类失败在 agent 循环里的处理方式不同。"
         ],
-        "mental": "模型提出动作，Agent 发起请求，Resources 执行动作。",
-        "question": "只在 tools JSON 里声明 get_humidity，够了吗？",
-        "answer": "还需要 Resources 中相应路由与实现。否则模型可以提出调用，真正的 HTTP 请求仍会得到 404。"
+        "mental": "模型提出动作，Agent 发出请求，Resources 执行动作。",
+        "question": "只在 tools JSON 里声明 get_humidity，够吗？",
+        "answer": "不够。还需要在 Resources 里有对应的路由和实现，否则模型可以提出调用，但真正的 HTTP 请求会得到 404。"
       }
     ]
   }
