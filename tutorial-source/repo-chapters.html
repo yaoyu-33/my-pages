@@ -1,6 +1,8 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <section class="chapter" id="repo"><div class="section-head"><span class="section-num">01</span><div><h2>先把整个 repo 放到一张地图上</h2><p>Gym = 公共运行底座 + 可替换组件 + 组合配方 + 数据与结果。</p></div></div>
+@@DIAGRAM_TEAM@@
+
 <p>这个仓库同时装着一个 Python 库、一组可运行的服务、许多 benchmark 实现和操作工具。初读时容易把这些东西看成一套庞大的业务代码。先按下面的责任分组，你就能回答：<strong>我要理解的行为，是公共机制，还是某个 benchmark 的具体规则？</strong></p>
 <div class="repo-stack" aria-label="仓库的概念分层"><div><b>组合与入口</b><span>CLI · environments/ · benchmarks/ · YAML</span></div><span class="stack-arrow">↓ 选择实现、配置连线</span><div><b>具体组件</b><span>Environment · Agent · Resources · Model</span></div><span class="stack-arrow">↓ 复用协议和运行机制</span><div><b>公共底座 nemo_gym/</b><span>类型 · HTTP · 生命周期 · 收集 · sandbox · 观测</span></div><span class="stack-arrow">↓ 调用外部能力</span><div><b>仓库外的系统</b><span>推理引擎 · 容器平台 · 集群调度器 · 训练框架</span></div></div>
 <p class="small">这是责任关系图，不是完整的 Python import 图。一次部署可以把多个组件放在同一台主机；逻辑上分层不等于必须分配多台机器。</p>
@@ -32,6 +34,8 @@
 </section>
 
 <section class="chapter" id="contracts"><div class="section-head"><span class="section-num">02</span><div><h2>核心抽象：组件先约定“交什么”，再决定“怎么做”</h2><p>同一种协议背后可以换实现；边界和所有权决定能否安全组合。</p></div></div>
+@@DIAGRAM_CONTRACT@@
+
 <div class="grid2"><div class="card"><div class="kicker">PYTHON / 实现侧</div><h3>Base 定义契约，Simple 提供常用运行能力</h3><p><code>BaseServer</code> 是带配置和客户端的 Pydantic 对象；<code>SimpleServer</code> 增加 FastAPI / Uvicorn 的公共启动能力。Agent、Resources、Model 的基类再补相应路由和协议；具体 <code>app.py</code> 实现业务。</p><p class="small">这是职责概括，不是严格单继承树。源码里的 <code>SimpleResourcesServer</code> 等使用多继承和 mixin；“Simple” 也不代表该类只做一件小事。</p></div><div class="card"><div class="kicker">HTTP / 运行侧</div><h3>跨进程交的是 JSON，不是 Python 对象引用</h3><p>调用方把 Pydantic 数据序列化为 JSON，经 HTTP 发送；被调用方按类型校验再执行。<code>self.server_client.post(...)</code> 是网络调用，不是直接调用另一实例的 Python 方法。</p><p class="small">因此会出现连接失败、响应丢失、重试、超时；程序内的一次调用成功返回，不再是唯一可能的结果。后面的 session / cleanup 设计就是为这些边界服务。</p></div></div>
 <div class="table-wrap"><table><thead><tr><th>契约</th><th>输入 → 输出</th><th>不要混淆</th></tr></thead><tbody>
 <tr><td>模型 <code>/v1/responses</code></td><td>消息、工具声明、sampling 设置 → 模型输出项和可用的 usage / token 信息</td><td>模型可以提出 function call；生成这个 JSON 本身还没有执行工具。</td></tr>
@@ -82,6 +86,8 @@ example_single_tool_call_simple_agent:     # 1. 此次运行中的实例名
 </section>
 
 <section class="chapter" id="tiny"><div class="section-head"><span class="section-num">06</span><div><h2>先跟一题最小示例：问天气</h2><p>用一个真实的内置小环境，把文件、函数、请求和结果对应起来。</p></div></div>
+@@DIAGRAM_TINY@@
+
 <p>选择 <code>example_single_tool_call</code>，因为它不需要代码仓库或容器就能看见完整责任分工。本节只借它讲模型、工具与 verifier 的内层协作，原生外层编排在后面的 Hermes 案例展开。本节从固定版本源码推导调用路径，<strong>不是本次新运行的模型日志</strong>。请求里的天气问题是真实样例，下面模型选择的城市和回答用于说明。</p>
 <div class="table-wrap"><table><thead><tr><th>步骤</th><th>谁调用谁 / 读哪个文件</th><th>发生什么</th></tr></thead><tbody>
 <tr><td>1 读任务</td><td><a data-src="resources_servers/example_single_tool_call/data/example.jsonl">data/example.jsonl</a></td><td>一行包含 “what's it like in sf?” 和 <code>get_weather(city)</code> 的工具声明。声明描述参数，没有工具 Python 实现。</td></tr>

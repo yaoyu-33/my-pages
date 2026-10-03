@@ -38,6 +38,11 @@ import re
 template = (ROOT / 'index.template.html').read_text()
 repo_front, repo_middle = (ROOT / 'repo-chapters.html').read_text().split('<!-- INSERT_AFTER_ASYNC -->')
 template = template.replace('@@REPO_FRONT@@', repo_front).replace('@@REPO_MIDDLE@@', repo_middle)
+parts = re.split(r'<!-- SLOT: (\w+) -->', (ROOT / 'diagrams.html').read_text())
+for name, markup in zip(parts[1::2], parts[2::2]):
+    template = template.replace('@@DIAGRAM_' + name.upper() + '@@', markup.strip())
+template = template.replace('@@ILLUSTRATED_CSS@@', (ROOT / 'illustrated.css').read_text())
+template = template.replace('@@ILLUSTRATED_JS@@', (ROOT / 'illustrated.js').read_text())
 for path in sorted(set(re.findall(r'data-src="([^"]+)"', template))):
     p = SOURCE / path
     if not p.is_file():

@@ -6,7 +6,8 @@
 The Chinese tutorial covers the whole NeMo Gym repository, shared contracts,
 serving and async, configuration and startup, a minimal weather-tool example,
 core design, evaluation/training boundaries, and SWE-Pro × Hermes with Harbor
-comparisons. The current V3 edition teaches native `single_agent_turn` and Hermes
+comparisons. The current V4 illustrated edition adds a soft cream/mint/lavender theme, a small
+reading companion and ten responsive diagrams. It teaches native `single_agent_turn` and Hermes
 sessions, with a verified native-session smoke and direct typed request examples.
 All 14 chapters, interactions, source excerpts and embedded evidence
 from the workstation edition are preserved. Only navigation targets are adapted
@@ -35,6 +36,9 @@ difference between source walkthroughs, simulations and recorded runtime evidenc
 ## Update
 
 1. Edit `tutorial-source/index.template.html` or `tutorial-source/repo-chapters.html`.
+   Diagrams live in `diagrams.html`; `illustrated.css` and `illustrated.js` provide
+   the visual theme, responsive connectors and synchronized flow highlighting.
+   Keep these three files beside the builder; it embeds them in the standalone HTML.
 2. Keep `native-evidence.json`, `native-hermes.yaml` and `prepare-native-request.py`
    beside the builder. Build against an exact checkout of the pinned Gym revision:
 
