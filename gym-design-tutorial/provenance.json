@@ -1,12 +1,11 @@
 {
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "workstation_html_sha256": "5018088aef2fa33d8398e7aa61c2a3f553bae6f7bcb1f9b29e16c2a213182a07",
-  "public_html_sha256": "42989ca6d911a6897b3357b543a1585b26b6e3a15e73e0c9c095ca4df624a35b",
+  "workstation_html_sha256": "deab9beaf2f52638158bb72d9418e68830d218e019cbd3213a1b3cd8fd2dc415",
+  "public_html_sha256": "1cba646bf479c7e70aa302e89f947f9b228852539c7ebcdc4edc6bb47372ac91",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",
     "benchmarks/swebench/pro/prepare.py": "895b2c292119a8ffe479681322ff94f4028cc95a1008fd576e57c37d18ee1eaf",
-    "environment_servers/legacy_agent/app.py": "429aa98aeb76a91068ade2a07fae28832524214c8506615e89a7217d35dca490",
     "environment_servers/single_agent_turn/app.py": "cf9b0658a26257110592f602f65d3b231cc2886281e634355777d4f884ffc6fa",
     "environment_servers/single_agent_turn_legacy/app.py": "dae88433b3baacfdbd8185e12c715d2bcded6a4bffccb935ded10568e68ccadc",
     "examples/environment_manifest.yaml": "cad63b29c78f0326f021c73792e84d641799338f37ef655b1b2dcdd3b4d56efe",
@@ -35,6 +34,7 @@
     "nemo_gym/sandbox/providers/base.py": "3bde691a0159c9e0459345f20f857d9644926e2b773c60d6d6ac33272089496e",
     "nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml": "9345aa731dd44faca8a75959db2f17fb45610389810ea52356a25878e18ab84e",
     "nemo_gym/server_utils.py": "92ffbbad19a6341393ac1373aa38ef020d1c62d057ad7e201856e6926adcf3d3",
+    "nemo_gym/single_agent_turn_types.py": "f6b8d0384728df50d541e9653c75920c2478c9d33b36cf55e2747cbf8c649f3f",
     "nemo_gym/telemetry/setup.py": "a8eaa1167ebb7c4f822c43a41bc86fb5f0d22ec81e40dff5f3821ea524a1d1be",
     "nemo_gym/token_id_capture/consumer.py": "dd50d7aa131ed26c31b7d1ce511a2dd04c49bed80e036df366c580e08b0714f0",
     "nemo_gym/train_data_utils.py": "2f6c1857b1a10248e6f5500d95770264140513548fd8988bacd72fac9582a5a1",
@@ -56,11 +56,11 @@
     "responses_api_models/vllm_model/configs/vllm_model_for_training.yaml": "4f59482b08b9f2632aa2ec1fb3de28e4f9e2b5a289e2a665c446de12e203de8e",
     "tests/unit_tests/test_server_utils.py": "cd165576f7d5266b8f592a2e0e70e3ca147cf103bff6db5a0842a88e755f013a"
   },
-  "evidence_sha256": "cf9d4ed909657d3dfc0a367654135b0fb0d5de5020fedabf1637e7472b94ea20",
+  "evidence_sha256": "6413b0f85f10aee8cdb8db35a10b0656ad4f50777f92871791c6329678d32cef",
   "navigation_replacements": {
     "href=\"/\"": 3,
     "href=\"/architecture/\"": 1,
-    "href=\"/harness-handoff/\"": 3
+    "href=\"/harness-handoff/\"": 2
   },
   "content_changes": "None; only homepage and companion-page href targets changed."
 }

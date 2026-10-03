@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
+  "checks": [
+    "offline full config composition",
+    "one native Environment implementation and correct references",
+    "native Environment config schema",
+    "copyable request script executed on saved real row",
+    "typed request and attempt-qualified identity",
+    "all verifier fields preserved, routing removed",
+    "typed success/failure response schemas"
+  ],
+  "model_calls_made": 0,
+  "service_processes_started": 0,
+  "scope": "Static examples only; placeholder endpoints; no network/model execution or complete HTTP episode."
+}

@@ -27,6 +27,7 @@
 <div class="topline"><a href="/">← All pages</a><span>源码有固定版本 · 实例有证据 · 演示不调用模型</span></div>
 <header class="hero" id="intro"><div class="eyebrow">A repository tour / 先看全局，再追一次请求</div><h1>读懂整个 Gym，<br>再走完一道题。</h1><p class="lead">先建立整个 repo 的地图：哪些代码是公共底座，哪些是具体组件，配置怎样把它们连起来。再从 serving、async 和一个天气工具示例，走到 SWE-bench Pro × Hermes 的真实 benchmark。</p><div class="tags"><span class="tag">Repo 总览</span><span class="tag">启动链路</span><span class="tag">Serving 入门</span><span class="tag">Async 交互实验</span><span class="tag">真实代码入口</span><span class="tag">SWE-Pro × Hermes</span><span class="tag">Harbor 对比</span></div>
 <div class="hero-line"><div><b>认目录</b><span>库、组件、配方</span></div><em>→</em><div><b>懂契约</b><span>谁收什么、交什么</span></div><em>→</em><div><b>追启动</b><span>CLI → 配置 → 服务</span></div><em>→</em><div><b>走小例子</b><span>模型 ↔ 天气工具</span></div><em>→</em><div><b>读真实案例</b><span>Hermes、测试与清理</span></div></div>
+<div class="callout"><strong>这版按新路径讲：</strong><code>single_agent_turn → hermes_agent sessions → SWE-Pro verifier</code>。第 10 章换成已验证的新 session smoke，第 12 章提供不经过兼容入口的 typed 请求示例；旧入口说明收进附注。</div>
 <p><strong>Gym 的主线：</strong>把“让 agent 在任务环境里行动并得到反馈”拆成可组合的部件。公共库提供协议和运行机制，具体组件负责模型、harness、任务状态和评分，YAML 决定本次用哪一套。</p>
 <div class="grid2"><div class="card"><div class="kicker">路线 A · 先理解 REPO</div><p>按 <a href="#repo">01–07 章</a> 顺着读：目录地图 → 契约 → serving → async → 启动 → 最小示例 → 设计。读完应能解释一次请求走过哪些文件，并知道改某种行为该去哪里。</p></div><div class="card"><div class="kicker">路线 B · 追 BENCHMARK</div><p>理解前半后，再读 <a href="#architecture">08–13 章</a>：把通用角色对应到 SWE-Pro / Hermes，追踪 session、模型调用、patch、评分与失败清理。<a href="#reading">14 章</a>给出分阶段读码路线。</p></div></div>
 <div class="version">整篇代码讲解固定在 Gym <a href="https://github.com/NVIDIA-NeMo/Gym/commit/@@SHA@@"><code>3ef478df1</code></a>。已确认 <a href="https://github.com/NVIDIA-NeMo/Gym/pull/3718">#3718 Resources sessions</a>、<a href="https://github.com/NVIDIA-NeMo/Gym/pull/3720">#3720 Hermes sandbox sessions</a>、<a href="https://github.com/NVIDIA-NeMo/Gym/pull/3722">#3722 Pro recipe</a>、<a href="https://github.com/NVIDIA-NeMo/Gym/pull/3554">#3554 session 加固</a> 已合并。#3554 合并于 10 月 2 日 19:31 PDT（UTC 为 10 月 3 日）。</div>
@@ -61,26 +62,28 @@
 
 <section class="chapter" id="architecture"><div class="section-head"><span class="section-num">08</span><div><h2>把 repo 地图套进 SWE-Pro × Hermes</h2><p>从这里开始进入具体案例：通用角色，各自落在哪些代码上？</p></div></div>
 <p>一个 environment 的概念组成是 <strong>任务数据、agent harness、verifier、状态</strong>。实现上 Gym 把它们映射到 HTTP 组件；新路线增加 Environment Server，统一管理一次 episode 的顺序与边界。它和执行代码的 sandbox 是两个不同概念。</p>
-<div class="table-wrap"><table><thead><tr><th>层</th><th>拥有的责任</th><th>这次 SWE-Pro × Hermes 的对应物</th></tr></thead><tbody><tr><td>Dataset / prepare</td><td>任务、版本、输入协议</td><td>问题 + requirements + interface；base commit、image digest、评分脚本和必过测试集</td></tr><tr><td>Collector</td><td>任务路由、repeat、attempt、结果持久化</td><td>读取 JSONL，materialize 后发给 Environment <code>/run</code>，保存成功与失败 sidecar</td></tr><tr><td>Environment Server</td><td>一次 episode 的流程与 cleanup 注册</td><td><code>single_agent_turn_legacy</code> 接 flat row，再调用新 <code>single_agent_turn</code> 生命周期</td></tr><tr><td>Agent Server</td><td>harness session、runtime、activation</td><td><code>hermes_agent</code> 连接借来的 sandbox，启动 Hermes 的模型/工具循环</td></tr><tr><td>Resources Server</td><td>任务状态、任务容器所有权、评分</td><td><code>swebench_pro</code> seed / extract patch / fresh verify / close</td></tr><tr><td>Model Server</td><td>模型协议适配与调用关联</td><td>Hermes → Gym proxy → vLLM / NIM / hosted endpoint</td></tr><tr><td>Sandbox provider</td><td>容器执行机制与连接句柄</td><td><code>AsyncSandbox</code> 封装 Docker、OpenSandbox、Apptainer 等 provider 的能力</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>层</th><th>拥有的责任</th><th>这次 SWE-Pro × Hermes 的对应物</th></tr></thead><tbody><tr><td>Dataset / prepare</td><td>任务、版本、输入协议</td><td>问题 + requirements + interface；base commit、image digest、评分脚本和必过测试集</td></tr><tr><td>Collector</td><td>任务路由、repeat、attempt、结果持久化</td><td>批量运行负责路由与持久化；本教程的原生单题示例直接 POST typed request 到 Environment <code>/run</code></td></tr><tr><td>Environment Server</td><td>一次 episode 的流程与 cleanup 注册</td><td><code>single_agent_turn</code> 接收 typed task / episode，管理 seed → activation → close → verify</td></tr><tr><td>Agent Server</td><td>harness session、runtime、activation</td><td><code>hermes_agent</code> 连接借来的 sandbox，启动 Hermes 的模型/工具循环</td></tr><tr><td>Resources Server</td><td>任务状态、任务容器所有权、评分</td><td><code>swebench_pro</code> seed / extract patch / fresh verify / close</td></tr><tr><td>Model Server</td><td>模型协议适配与调用关联</td><td>Hermes → Gym proxy → vLLM / NIM / hosted endpoint</td></tr><tr><td>Sandbox provider</td><td>容器执行机制与连接句柄</td><td><code>AsyncSandbox</code> 封装 Docker、OpenSandbox、Apptainer 等 provider 的能力</td></tr></tbody></table></div>
 <div class="callout"><strong>“single agent turn” 不是只调用一次模型。</strong><br>这里的一次 turn 指一次 Agent <code>/v1/responses</code> activation；Hermes 在它里面可以进行几十轮模型和工具调用。Environment 只需要知道这一次 activation 的输入、结束与结果。</div>
 <h3>代码地图：按责任读，而不是按目录顺序读</h3><div class="filemap"><a data-src="benchmarks/swebench/pro/hermes.yaml">benchmarks/swebench/pro/hermes.yaml<span>配方：把具体的 Resources、Agent、Environment 绑定起来</span></a><a data-src="environment_servers/single_agent_turn/app.py" data-line="83">environment_servers/single_agent_turn/app.py<span>主流程：seed → responses → agent close → verify → resources close</span></a><a data-src="responses_api_agents/hermes_agent/app.py" data-line="422">responses_api_agents/hermes_agent/app.py<span>借用 / 创建 sandbox；幂等 activation；runner 清理</span></a><a data-src="responses_api_agents/hermes_agent/sandbox_runner.py" data-line="77">responses_api_agents/hermes_agent/sandbox_runner.py<span>容器内入口：AIAgent、terminal、模型调用与结果快照</span></a><a data-src="resources_servers/swebench_pro/app.py" data-line="354">resources_servers/swebench_pro/app.py<span>session 映射、patch 导出、干净评分环境</span></a><a data-src="resources_servers/swebench_pro/verification.py" data-line="388">resources_servers/swebench_pro/verification.py<span>任务测试脚本、parser 与 required-pass 规则</span></a><a data-src="nemo_gym/base_environment_server.py" data-line="160">nemo_gym/base_environment_server.py<span>准入、episode timeout、finally cleanup、身份校验</span></a><a data-src="nemo_gym/rollout_collection.py" data-line="166">nemo_gym/rollout_collection.py<span>任务/尝试持久化、失败路由与断点恢复</span></a></div>
-<details><summary>为什么保留一个名字带 legacy 的 Environment Server？</summary><p>已有准备好的数据是 flat JSONL，例如把 <code>instance_id</code>、<code>base_commit</code> 与 <code>responses_create_params</code> 放在同一层。新协议使用 <code>episode_id</code>、<code>task.task_id</code>、<code>task.task_input</code>。薄适配器负责形状转换，再执行新生命周期。</p><p>因此 <code>single_agent_turn_legacy</code> 的 “legacy” 描述<strong>输入输出兼容层</strong>，不是旧 <code>hermes_sandboxed_agent</code> 的别名。它不会调用 agent 的旧 <code>/run</code>。</p><p class="sources"><a data-src="environment_servers/single_agent_turn_legacy/app.py" data-line="39">run_legacy / _native_request / _legacy_result</a></p></details>
+<p class="small">本章按原生 <code>single_agent_turn</code> 解释。仓库现有 flat-row 配方的兼容原因放在<a href="#compatibility">第 12 章附注</a>，不需要先学它才能理解生命周期。</p>
 </section>
 
 <section class="chapter" id="flow"><div class="section-head"><span class="section-num">09</span><div><h2>一题从哪来，到哪里结束？</h2><p>逐步点开流程，观察 HTTP 边界、状态所有者，以及谁在等待谁。</p></div></div>
-<div class="flow-shell"><div class="flow-toolbar"><label for="flow-mode">执行路径</label><select id="flow-mode"><option value="native">新合并配方 · native session</option><option value="historical">真实成功样本 · 旧 sandboxed adapter</option></select><span class="small" id="flow-version"></span></div><div class="flow-grid"><div class="flow-steps" id="flow-steps" aria-label="流程步骤"></div><div class="flow-body" aria-live="polite"><div class="kicker" id="step-kicker"></div><h3 id="step-title"></h3><div class="flow-arrow" id="step-arrow"></div><p id="step-description"></p><div class="flow-facts"><div><b>任务状态 / 所有权</b><span id="step-state"></span></div><div><b>此刻在等什么</b><span id="step-wait"></span></div></div><pre><code id="step-code"></code></pre><p class="small" id="step-why"></p><a id="step-source" class="small">打开对应代码 →</a></div></div><div class="flow-bottom"><button id="flow-prev">← 上一步</button><span class="flow-counter" id="flow-counter"></span><button id="flow-next" class="primary">下一步 →</button></div></div>
-<div class="callout"><strong>数据可见性有意不同：</strong>Resources 拿到完整 task data；Agent activation 只收到模型输入和所需访问描述。gold patch、隐藏测试/评分脚本属于 verifier 一侧。新配方只启用 terminal toolset；下面历史成功样本启用了文件工具，不能把它的工具轨迹直接当作新配方的轨迹。</div>
+<div class="flow-shell"><div class="flow-toolbar"><label for="flow-mode">执行路径</label><select id="flow-mode"><option value="native">原生入口 · 从 typed task 开始</option><option value="observed">真实记录 · Hermes native session</option></select><span class="small" id="flow-version"></span></div><div class="flow-grid"><div class="flow-steps" id="flow-steps" aria-label="流程步骤"></div><div class="flow-body" aria-live="polite"><div class="kicker" id="step-kicker"></div><h3 id="step-title"></h3><div class="flow-arrow" id="step-arrow"></div><p id="step-description"></p><div class="flow-facts"><div><b>任务状态 / 所有权</b><span id="step-state"></span></div><div><b>此刻在等什么</b><span id="step-wait"></span></div></div><pre><code id="step-code"></code></pre><p class="small" id="step-why"></p><a id="step-source" class="small">打开对应代码 →</a></div></div><div class="flow-bottom"><button id="flow-prev">← 上一步</button><span class="flow-counter" id="flow-counter"></span><button id="flow-next" class="primary">下一步 →</button></div></div>
+<div class="callout"><strong>数据可见性有意不同：</strong>Resources 拿到完整 task data；Agent activation 只收到模型输入和所需访问描述。gold patch、隐藏测试/评分脚本属于 verifier 一侧。本教程的原生示例与下面成功 smoke 都启用 terminal toolset；模型通过 shell 读写 /app 中的任务文件。</div>
 </section>
 
-<section class="chapter" id="real"><div class="section-head"><span class="section-num">10</span><div><h2>真实样本：给 OpenLibrary 增加排序函数</h2><p>读取已经完成的运行，核对 patch 和原始 test report。这里没有启动新模型任务。</p></div></div>
-<p>题目要求在 <code>openlibrary/core/observations.py</code> 中新增 <code>_sort_values(order_list, values_list)</code>：按 ID 指定顺序返回 name，忽略未知 ID，也不引入列表外的值。例如顺序 <code>[3, 4, 2, 1]</code> 应得到 <code>["this", "is", "in", "order"]</code>。</p>
-<div class="version"><strong>运行证据：</strong>2026-10-01 · Gym <a href="https://github.com/NVIDIA-NeMo/Gym/commit/7a19900a114f8c349c9fac031b016575e39cfa36"><code>7a19900a1</code></a> · <code>hermes_sandboxed_agent</code> · Hermes <code>2237be355</code> · <code>n35-super-ga</code> · workstation + Docker → HSG 模型。这是特意选取的 positive control、一次新尝试，不能当随机样本或完整 benchmark 准确率。</div>
-<div class="metrics"><div class="metric"><b>18</b><span>模型调用</span></div><div class="metric"><b>26</b><span>工具调用及返回</span></div><div class="metric"><b>1,229 B</b><span>实际代码 patch</span></div><div class="metric"><b>1 / 1</b><span>必过测试通过</span></div></div>
-<div class="grid2"><div class="card"><h3>这次模型真的做了什么</h3><ol><li>用 <code>read_file</code> 读取目标文件。</li><li>用 <code>search_files</code> 查找已有函数和相关测试。</li><li>调用工具实际修改文件，形成下面的 patch。</li><li>自然结束，<code>response_status=completed</code>，没有用完 30-turn 上限。</li></ol><p class="small">这些步骤来自保存的工具轨迹与候选 patch，不是根据最终答案推测。模型调用次数与工具次数不同，因为一次模型回复可以包含多个工具调用。</p></div><div class="card"><h3>Gym 又验证了什么</h3><ol><li>runner cleanup receipt 确认完成，无 timeout。</li><li>提取 diff，应用到另一个干净的评分容器。</li><li>原始与保存的 parser report 一致。</li><li><code>test_sort_values</code> 为 PASSED，必过测试无缺失，reward = 1。</li></ol><p class="small">这道题的 FAIL_TO_PASS 为 1，PASS_TO_PASS 为 0；不是“整个 OpenLibrary 测试套件全部通过”。</p></div></div>
-<details><summary>展开实际候选 patch（不是 gold patch）</summary><pre><code>@@PATCH@@</code></pre><p class="small">SHA-256：<code>6aa2a5710b7a218ec34ebfebd5105b3184905330c1d1a57fe58762075020182f</code>。本教程重新从 rollout 取出 patch 计算 hash，并与既有 audit 对照。</p></details>
-<details><summary>查看真实工具调用开头与原始测试结果</summary><pre><code>@@TOOL_EXCERPT@@</code></pre><pre><code>@@TESTS@@</code></pre></details>
-<details><summary>证据身份、运行预算和复核范围</summary><p>任务原始索引 <strong>516（从 0 开始）</strong>；完整 ID、镜像 digest 和文件位置见下面摘要。运行预算：30 turns、每次模型调用最多 32768 output tokens、262144 context、runner 900 s。保存的 native usage 为 input 263198 / output 3305 / total 266503；这是该 adapter 的报告口径，不把它宣称为完整供应商账单。</p><pre class="evidence-code"><code>@@EVIDENCE_SUMMARY@@</code></pre><p class="small">复核通过：reward、evaluation_completed、patch hash、原始 report 一致、26 个工具调用、失败 sidecar 为空。cleanup receipt 来自已完成运行的审计记录；本次没有重新查询当时已删除的容器，也没有重跑模型。</p><button id="download-evidence">下载证据摘要 JSON</button><p class="sources"><a href="/harness-handoff/">已有 harness handoff</a><a href="@@BOARD@@/findings/2026-10-02-gym-design-tutorial-evidence.md">共享知识库复核记录</a></p></details>
-<div class="callout warn"><strong>一个源码中真实存在的评分陷阱：</strong>在讲解快照里，Pro verifier 会返回 <code>evaluation_completed=false</code>，但没有同时设置 <code>mask_sample</code>；新 single-agent-turn 层也没有在这里替它改写。所以别只检查 <code>reward=0</code> 或 <code>mask_sample=false</code> 就算“模型做错”。应同时审计 verifier 完成情况与失败记录。旧 sandboxed adapter 有自己的失败 gate，不能将它的语义推及所有路径。<span class="sources"><a data-src="resources_servers/swebench_pro/app.py" data-line="584">返回字段</a><a data-src="environment_servers/single_agent_turn/app.py" data-line="261">结果转交</a></span></div>
+<section class="chapter" id="real"><div class="section-head"><span class="section-num">10</span><div><h2>真实新路径：修复 OpenLibrary 导入校验</h2><p>同一个 native session 生命周期，落到一份可核对的模型轨迹、候选 patch 和测试报告。</p></div></div>
+<p>OpenLibrary 的导入接口需要接受两类记录：元数据完整的书，或有 <code>title</code>、<code>source_records</code> 和强标识符（ISBN / LCCN）的可区分记录。任务要求调整 <code>openlibrary/plugins/importapi/import_validator.py</code> 的校验，让第二类记录也能通过，同时保留应当拒绝的情况。</p>
+<div class="version"><strong>运行身份：</strong>2026-09-30 PDT（10-01 UTC）· Gym <a href="https://github.com/NVIDIA-NeMo/Gym/commit/d5f13f54cf762c7e687dd2d50d2583efe2c9b717"><code>d5f13f54c</code></a> · <code>hermes_agent</code> · NIM <code>nvidia/nemotron-3-super-120b-a12b</code> · workstation 上的 OpenSandbox → Docker。关键 5 个运行源码文件的 hash 与此 revision 一致；它早于本教程的合并后源码快照。</div>
+<div class="metrics"><div class="metric"><b>20 + 1</b><span>模型请求：20 次 200，末次摘要 422</span></div><div class="metric"><b>20</b><span>terminal 调用及对应返回</span></div><div class="metric"><b>11,273 B</b><span>实际候选 patch</span></div><div class="metric"><b>18 / 18</b><span>要求的 verifier tests 通过</span></div></div>
+<div class="grid2"><div class="card"><h3>模型确实修改了任务仓库</h3><ol><li>通过 terminal 查找 importapi 文件，读取现有 validator。</li><li>搜索调用处和测试，修改校验逻辑并运行 shell 检查。</li><li>到达 20-turn 上限；额外的最终摘要请求被模型代理以 422 拒绝。</li><li>保存 <code>response.status=incomplete</code>，已有文件修改仍然保留。</li></ol><p class="small">模型轨迹的 20 个 function_call 都是 terminal，并各有一个 function_call_output。保存的 usage 为零值，本教程将实际 token 总量记为 unknown。</p></div><div class="card"><h3>新生命周期仍完成了评分</h3><ol><li>Resources seed → Hermes agent session → 单次 activation。</li><li>事件日志证实 agent session close 返回后才开始 verify。</li><li>导出真实 diff，在干净评分 sandbox 中执行 task verifier。</li><li>3 个 FAIL_TO_PASS + 15 个 PASS_TO_PASS 全通过，<code>reward=1</code>、<code>evaluation_completed=true</code>。</li></ol><p class="small">最后 Resources close 返回 200。保存的 cleanup receipt 记录 fallback 前没有残留容器；本次只复核历史收据。</p></div></div>
+<div class="callout"><strong>这个样本教会我们什么：</strong>“patch 通过测试”与“agent 自然完成最终回答”是两个维度。SWE-Pro 用仓库的实际 diff 评分；因此本次可以同时是 <code>reward=1</code> 和 <code>agent_status=incomplete</code>。它证明新 session 生命周期可产出可评分 patch，不是无错误完成或完整 benchmark 准确率。</div>
+<p class="small"><strong>入口证据边界：</strong>这次 smoke 的外层驱动仍把 flat row 交给适配器，再进入 <code>single_agent_turn</code>；内部调用的是新 <code>hermes_agent</code> session / responses / close，没有调用旧 Hermes <code>/run</code>。第 12 章的纯 typed 入口已做静态配置和 schema 校验，本次没有另跑模型来给它做端到端验收。</p>
+<details><summary>展开实际候选 patch（不是 gold patch）</summary><pre><code>@@PATCH@@</code></pre><p class="small">SHA-256：<code>110a17e6558ba0b6dadea162784803cf84ebf2084cea432351190fbc5823fd15</code>。重新计算，并与原始 verifier 日志里的 <code>patch.diff</code> 逐字节对照。</p></details>
+<details><summary>查看真实 terminal 调用开头与全部 18 项测试结果</summary><pre><code>@@TOOL_EXCERPT@@</code></pre><pre><code>@@TESTS@@</code></pre></details>
+<details><summary>证据身份、运行预算和复核范围</summary><p>任务来自原始数据的索引 <strong>55（从 0 开始）</strong>。这次设置是 20 turns、每次最多 4096 output tokens、runner 600 s、episode 1200 s；与第 12 章继承基础配置的默认预算不同。一次集成 smoke 不提供总体成功率。</p><pre class="evidence-code"><code>@@EVIDENCE_SUMMARY@@</code></pre><p class="small">复核：原始 output.json 与保存的 test_results 相同，原始 patch.diff 与候选文本字节相同；20 次成功模型请求、末次摘要 422、工具计数与 close-before-verify 顺序一致。直接访问 Hermes /v1/responses 的另一次 422 是驱动的预期拒绝测试，不计入模型请求。</p><button id="download-evidence">下载证据摘要 JSON</button><p class="sources"><a href="/harness-handoff/">已有 harness handoff</a><a href="https://github.com/NVIDIA-NeMo/Gym/pull/3554">#3554 验证记录</a><a href="@@BOARD@@/findings/2026-10-02-gym-design-tutorial-evidence.md">共享知识库复核记录</a></p></details>
+<div class="callout warn"><strong>评分检查不能只看 reward：</strong>在讲解快照中，Pro 的验证未完成分支可能返回 <code>evaluation_completed=false</code> 而不设置 <code>mask_sample</code>，single-agent-turn 会转交该结果。应一起检查完成字段和失败原因，避免把基础设施未完成误当模型答错。<span class="sources"><a data-src="resources_servers/swebench_pro/app.py" data-line="584">返回字段</a><a data-src="environment_servers/single_agent_turn/app.py" data-line="261">结果转交</a></span></div>
 </section>
 
 <section class="chapter" id="lifecycle"><div class="section-head"><span class="section-num">11</span><div><h2>管理的难点：结束、重试和评分不是同一件事</h2><p>看起来“啰嗦”的 session 和 cleanup 代码，是在处理远程系统的不确定性。</p></div></div>
@@ -93,37 +96,61 @@
 <details><summary>为什么不能随便增加 FastAPI workers？</summary><p>一个 worker 是一个服务进程；它不是一个 coroutine。此版本的 Pro session 映射保存在进程内字典，<code>num_workers != 1</code> 会显式报错。Hermes sessions 同样要求一个 worker。请求被分发到别的进程时，并不会自动得到原进程内的 session。</p><p>Environment 本身支持多个 worker，但每个 worker 的 semaphore 和准入队列各自独立，部署总名额大约是 <code>workers × max_concurrent_episodes</code>。增加它并不能绕过有状态下游的约束。先调 Collector/episode 并发并观察下游容量，之后再设计跨进程状态或路由。</p></details>
 </section>
 
-<section class="chapter" id="run"><div class="section-head"><span class="section-num">12</span><div><h2>把 YAML 读成运行流程</h2><p>先能解释每个配置，再复制命令。示例沿用固定快照的仓库教程。</p></div></div>
-<p><code>config_paths</code> 合成多份配置，<code>_inherit_from</code> 派生一个命名实例，<code>name</code> 引用另一个实例。比如 <code>swebench_pro_hermes</code> 是 Environment 实例名；里面的 <code>agent_server.name</code> 指到 <code>swebench_pro_hermes_agent</code>。名字是连线，不是 Python 类名。</p>
-<details><summary>打开完整的已合并 hermes.yaml</summary><pre><code>@@YAML@@</code></pre><p class="small"><code>enabled_toolsets: [terminal]</code> 限定本配方的工具；<code>model: ${policy_model_name}</code> 绑定真实 served model ID；Resources 中的 <code>allowed_agents</code> 是兼容性声明，不是运行成功的证据。</p></details>
-<div class="callout"><strong>运行前需要的四件东西：</strong>已安装的 Gym/controller 依赖；已准备的数据和镜像；实际可用的推理 endpoint；从任务 sandbox 可访问的 Gym Model Server 地址。native Hermes 使用安装在 agent server 的同一固定 Hermes 版本；若任务镜像还没有 runtime，seed 阶段会安装，可能需要 GitHub/PyPI 网络。它与旧 adapter 的预先挂载 <code>/opt/hermes</code> 是不同交付方式。</div>
-<h3>1. 配模型和 provider</h3><p>下方是<strong>需要填写的配置模板</strong>，通过环境变量引用自己的 endpoint、model ID 和 key。OpenSandbox 地址格式和接入要求按 <a data-src="nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml">provider 配置说明</a> 填写；这些值不内嵌到页面。<code>env start</code> 仍需部署正确的监听/发布地址，保证任务容器能访问代理。</p><div class="splitline"><span class="small">model-provider.yaml · 模板，未在本次启动服务</span><button class="copy" data-copy="model-config">复制</button></div><pre><code id="model-config">config_paths:
+<section class="chapter" id="run"><div class="section-head"><span class="section-num">12</span><div><h2>不用兼容入口：配置、请求、结果一起换</h2><p>一份纯原生的单题 HTTP 示例。配置与请求 schema 已静态校验；本次没有启动服务或重跑模型。</p></div></div>
+<p>原生入口已经存在：<code>single_agent_turn /run</code> 直接接收 <code>SingleAgentTurnRequest</code>。要使用它，连线选原生实现，输入显式携带 task / episode，输出读取 typed envelope。只改 YAML 中一个名字会留下数据格式不匹配。</p>
+<h3>1. 配方：直接选择 single_agent_turn</h3><p><code>config_paths</code> 合成组件的基础配置；下面同名块补齐实例引用。<code>single_agent_turn</code> 是实例名，也是这次选用的实现目录名；<code>agent_server.name</code> 指向 <code>hermes_agent</code> 实例。这个示例不依赖 <code>_inherit_from</code>，先看清三条连线即可。</p><div class="splitline"><span class="small">保存为 native-hermes.yaml</span><button class="copy" data-copy="native-config">复制</button></div><pre><code id="native-config">@@NATIVE_YAML@@</code></pre>
+<p class="small">解析后只有一个 Environment：<code>single_agent_turn</code>。本例继承基础配置的 30 turns、episode 21600 s、cleanup 180 s；这些是上限，不表示运行需要这么久，也不是上一章 smoke 的设置。正式运行要根据任务与 provider TTL 一起调整预算。</p>
+<h3>2. 推理和 sandbox 是另外两条连接</h3><p>下面通过环境变量读取 endpoint、真实 model ID 和 key。OpenSandbox 还需要 <code>OPENSANDBOX_DOMAIN</code> 与 <code>OPENSANDBOX_API_KEY</code>；provider 配置负责连接已经部署的 OpenSandbox 服务。<code>gym env start</code> 不能替你创建一个可用的推理集群。</p><div class="splitline"><span class="small">保存为 model-provider.yaml · 值在自己的运行环境中设置</span><button class="copy" data-copy="model-config">复制</button></div><pre><code id="model-config">config_paths:
   - responses_api_models/openai_model/configs/openai_model.yaml
   - nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml
 
 policy_base_url: ${oc.env:POLICY_BASE_URL}
 policy_api_key: ${oc.env:POLICY_API_KEY}
 policy_model_name: ${oc.env:POLICY_MODEL_NAME}</code></pre>
-<h3>2. 准备数据 → 启动 Gym → 收集一题</h3><p>命令在 <strong>Gym repo 根目录</strong>执行。先准备一次 pinned dataset；另开终端进行收集。<code>--no-serve</code> 的意思是“复用已启动的服务”，它<strong>不会</strong>自动继承之前终端使用的路由配置，所以两边都传同一组 config。</p><div class="splitline"><span class="small">新 native recipe · 来源于当前仓库文档；本次未重新执行模型</span><button class="copy" data-copy="native-commands">复制</button></div><pre><code id="native-commands"># A. 已安装 Gym 和 prepare 依赖后，只需准备一次
+<p class="small">Agent 与 Resources 的连接、Model proxy 的监听/发布地址都必须从任务 sandbox 可达；容器里的 localhost 是容器自己。Hermes seed 会检查或安装固定 runtime，镜像没有 runtime 时需要相应下载通路。环境要求见 <a data-src="nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml">provider 配置</a>与 <a data-src="fern/versions/latest/pages/evaluation-tutorials/hermes-swe-bench-pro.mdx">仓库部署说明</a>。</p>
+<h3>3. 输入：把一道题显式装进 task / episode</h3><pre><code>{
+  "episode_id": {"rollout_id": "tutorial-one", "attempt": 0},
+  "task": {
+    "task_id": {"taskset": "swebench_pro:my-run", "task_id": "具体 instance_id"},
+    "task_input": {
+      "responses_create_params": {"input": ["这里是任务的真实消息对象"]},
+      "task_data": {"这里保留准备好的 SWE-Pro 评分字段": "…"}
+    }
+  }
+}</code></pre><p class="small">上面只表示形状，不能原样提交。用下面脚本保留原始消息对象、image digest、base commit、run_script、parser_script 与测试列表；它只移走调用方的路由字段。gold patch / 测试元数据仍在 Resources 的 task_data 一侧。</p>
+<details><summary>展开可复制的 prepare-native-request.py（离线转换 + schema 校验）</summary><div class="splitline"><span class="small">在安装了本页固定版本 Gym 的环境中运行</span><button class="copy" data-copy="request-script">复制</button></div><pre><code id="request-script">@@REQUEST_SCRIPT@@</code></pre></details>
+<p><code>taskset</code> 标识这次运行的任务集合，<code>task_id</code> 标识题目；<code>rollout_id</code> 标识一次逻辑采样，<code>attempt</code> 标识其物理重试。下面脚本默认新建身份；多题同一运行应显式传相同 <code>--taskset</code>，同一 rollout 的新 attempt 保留 <code>--rollout-id</code> 并增加 <code>--attempt</code>。Environment /run 本身不承诺整次调用的持久化去重，别把 HTTP 重发当成无成本重试。</p>
+<h3>4. 先启动，再向原生 Environment 发一题</h3><div class="splitline"><span class="small">Gym repo 根目录 · 命令模板，没有在本次执行模型</span><button class="copy" data-copy="native-commands">复制</button></div><pre><code id="native-commands"># 预先安装 prepare 依赖；准备一次固定版本数据
 python benchmarks/swebench/pro/prepare.py
 
-# B. 终端 1：保持服务运行
-gym env start \
-  --config benchmarks/swebench/pro/hermes.yaml \
-  --config model-provider.yaml
+# 离线生成一题。默认第 0 行，不是上一章历史数据的第 55 行。
+python prepare-native-request.py \
+  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \
+  native-request.json --row 0
 
-# C. 终端 2：先检查一题；另选输出路径，避免覆盖旧实验
-gym eval run --no-serve \
-  --config benchmarks/swebench/pro/hermes.yaml \
-  --config model-provider.yaml \
-  -i benchmarks/swebench/data/swebench_pro_benchmark.jsonl \
-  -o results/hermes-pro-tutorial-smoke.jsonl \
-  +agent_name=swebench_pro_hermes_agent \
-  --limit 1 --concurrency 1</code></pre>
-<p class="small">这里 <code>--limit 1</code> 选的是输入中的第一题，<strong>不是</strong>上面索引 516 的 OpenLibrary positive control。重现该样本需要它的相同输入和旧版配置；<a href="/harness-handoff/">现有 handoff</a> 保留了历史 pin 和运行设置。一条新版命令不能重现不同版本的旧轨迹。</p>
-<h3>3. 看结果之前，先看是否真的完成验证</h3><div class="table-wrap"><table><thead><tr><th>文件 / 字段</th><th>它回答的问题</th></tr></thead><tbody><tr><td><code>*_materialized_inputs.jsonl</code></td><td>到底 dispatch 了什么输入、路由与 repeat？应当与原始数据及运行配置对应。</td></tr><tr><td><code>rollouts.jsonl</code></td><td>保存的 response、patch、reward、test_results、evaluation_completed 是什么？不要只提取 reward。</td></tr><tr><td><code>*_failures.jsonl</code></td><td>哪些物理 attempt 没有可用结果？在哪一阶段失败？能否重试？</td></tr><tr><td><code>*_aggregate_metrics.json</code></td><td>统计了哪些有效样本、多少任务、多少缺失？分母是否和报告一致？</td></tr><tr><td>模型 capture / agent observations</td><td>真实模型调用、token 和工具记录覆盖到哪？缺失是 unknown，不能当零。</td></tr><tr><td>verifier logs / cleanup receipt</td><td>必过测试结果与停止进程证据是什么？健康检查的“未观测”不能改成“健康”。</td></tr></tbody></table></div>
-<p class="sources"><a data-src="fern/versions/latest/pages/evaluation-tutorials/hermes-swe-bench-pro.mdx">仓库 native 运行教程</a><a data-src="nemo_gym/rollout_collection.py" data-line="166">结果与失败 sidecar 约定</a><a href="@@BOARD@@/runbooks/swebench-pro-audit-handoff.md">完整运行的审计方法</a></p>
-<div class="callout warn"><strong>这条 native Hermes SWE-Pro 配方明确是 evaluation-only。</strong>Gym 框架可以接训练，但这不代表每个 harness 自动满足 on-policy RL 的完整 token ID、历史与采样约束。仓库教程明确写了此路线不适合产出 RL training data。评测可用与训练数据可用需要分别验证。</div>
+# 终端 1：填好连接参数后，保持这些 Gym 服务运行
+gym env start --config native-hermes.yaml --config model-provider.yaml
+
+# 终端 2：检查服务，读取 single_agent_turn 的实际地址
+gym env status
+# 将该地址设为 NATIVE_ENV_URL（不带 /run），然后发一次请求
+: "${NATIVE_ENV_URL:?请设置 single_agent_turn 的实际 HTTP 地址}"
+curl --fail-with-body --silent --show-error \
+  -H 'Content-Type: application/json' \
+  --data-binary @native-request.json \
+  "${NATIVE_ENV_URL%/}/run" \
+  --output native-response.json</code></pre>
+<p>这里用一个直接 HTTP 客户端，让入口协议清楚可见。它只保存这一个请求/响应，没有自动获得 Collector 的 JSONL 聚合、断点恢复、失败 sidecar 或调度能力；需要批量运行时，应接入匹配 typed contract 的收集路径。</p>
+<h3>5. 输出：先检查 failure，再检查 result 是否完成评分</h3><pre><code># native-response.json 的 typed envelope
+{
+  "episode_id": {"rollout_id": "tutorial-one", "attempt": 0},
+  "task_id": {"taskset": "swebench_pro:my-run", "task_id": "具体 instance_id"},
+  "result": {"reward": 1.0, "evaluation_completed": true, "…": "…"},
+  "failure": null
+}</code></pre><p>这是成功分支的形状示意。失败分支为 <code>result=null</code>，<code>failure</code> 包含原因、阶段和可用的 partial response。成功进入 result 也仍应检查 <code>evaluation_completed</code>、<code>test_results</code>、patch 与 observations，再决定如何计分。</p>
+<div class="table-wrap"><table><thead><tr><th>证据</th><th>需要保留什么</th></tr></thead><tbody><tr><td>身份与配置</td><td>请求、完整 resolved config、代码 revision、dataset/evaluator pin、镜像 digest。</td></tr><tr><td>agent / model</td><td>response.status、工具轨迹、模型请求状态、有效 usage 或 unknown。</td></tr><tr><td>verifier</td><td>候选 patch、测试原始报告、必过测试、evaluation_completed。</td></tr><tr><td>生命周期</td><td>seed / activation / close / verify 事件，超时或失败，cleanup 收据。</td></tr></tbody></table></div>
+<details id="compatibility"><summary>兼容附注：为什么仓库默认配方还带 legacy？是否只是配置没更新？</summary><p>截至本次核对，<code>benchmarks/swebench/pro/hermes.yaml</code> 仍接准备好的 flat JSONL，因此选择 <code>single_agent_turn_legacy</code> 做输入形状转换及输出展开。内部早已执行新 Environment 生命周期与 Hermes sessions。它与旧 <code>hermes_sandboxed_agent /run</code> 是两回事。</p><p><strong>结论：可以不用这个适配入口；但不是简单漏改一个名字。</strong>本章配置和转换脚本已经把必要的请求/返回变化一起展示。默认数据整理的迁移拆在 <a href="https://github.com/NVIDIA-NeMo/Gym/pull/3818">#3818</a>；本次查询它仍未合并，而且说明明确保留现有 flat 配方、不会自动切换 Hermes。不要把尚未合并的 CLI 数据路径写成已验证的当前行为。</p><p>第 10 章成功 smoke 的外层是这个适配器，新生命周期已有真实证据；本章纯 typed HTTP 示例是独立、静态验证过的教学组合。这两个结论分别成立。</p><p class="sources"><a data-src="benchmarks/swebench/pro/hermes.yaml">默认配方</a><a data-src="environment_servers/single_agent_turn_legacy/app.py" data-line="51">兼容转换</a><a data-src="nemo_gym/single_agent_turn_types.py">原生协议</a><a data-src="nemo_gym/base_environment_server.py" data-line="142">原生 /run 注册</a></p></details>
+<div class="callout warn"><strong>这个 Hermes SWE-Pro 集成仍是 evaluation-only。</strong>Gym 能接训练框架，不代表该 harness 已提供满足 on-policy RL 的完整 token ID、轨迹和采样契约。<a data-src="fern/versions/latest/pages/evaluation-tutorials/hermes-swe-bench-pro.mdx">仓库文档</a>对此有明确范围说明。</div>
 </section>
 
 <section class="chapter" id="tradeoffs"><div class="section-head"><span class="section-num">13</span><div><h2>为什么这样设计？Harbor 能替代哪些部分？</h2><p>按你要保留的能力选边界，而不是先选一个框架名字。</p></div></div>
@@ -131,7 +158,7 @@ gym eval run --no-serve \
 <h3>把同一个概念放到 Harbor 里</h3><p>这里的 Harbor 指 <a href="https://github.com/harbor-framework/harbor">agent evaluation 框架</a>。它围绕 <strong>Task → Trial → Job</strong> 组织：task 通常由 instruction、环境定义与 tests 组成；trial 是 agent 尝试完成一个 task；job 组织许多 trials。当前官方 agent 列表含 Hermes，提供 ATIF 轨迹格式。<a href="https://docs.harborframework.com/core-concepts/agents/pre-integrated-agents">官方 agent 能力表</a></p>
 <div class="table-wrap"><table><thead><tr><th>你想解决的事</th><th>Gym 原生组件路线</th><th>Harbor / Gym + Harbor</th></tr></thead><tbody><tr><td>接已有容器化 benchmark</td><td>实现 Resources 和配方；可复用已有 Gym session/verifier</td><td>已有 Harbor task 时，Task/Trial/Job 路线更直接；仍需核对 adapter 与版本</td></tr><tr><td>换 agent 做 evaluation</td><td>统一 Responses/session 接口；需验证工具、模型参数和 lifecycle</td><td>许多 installed agent 适配器可选；每个 CLI 的安装、输出与 usage 仍需专门解析</td></tr><tr><td>训练时保留 token 级信息</td><td>Model Server、token capture 与训练框架连接是重要能力；具体 harness 仍需验收</td><td>ATIF/trajectory 便于交换，但不自动等于 on-policy token 序列；Gym 已有定制 Terminus/LLM bridge</td></tr><tr><td>Docker / 远程 / HPC</td><td>AsyncSandbox provider 与能力接口；同名 API 不保证所有能力都支持</td><td>有自己的 Environment 抽象；Gym bridge 有 Singularity 和 sandbox 适配，要维护另一层映射</td></tr><tr><td>防 agent 污染 grader</td><td>Pro 从代码 patch 重建 fresh verifier</td><td>当前 Harbor 也支持 separate verifier；是否使用及拷贝哪些产物取决于 task 配置</td></tr><tr><td>错误和资源成本统计</td><td>typed failure、mask、coverage、capture 分层；当前仍有具体语义缺口</td><td>Trial result / verifier result / native artifact 口径需映射；不能把未知 usage 或缺少 verdict 变成有效零</td></tr></tbody></table></div>
 <p class="sources"><a href="https://www.harborframework.com/docs/core-concepts">Harbor concepts</a><a href="https://docs.harborframework.com/core-concepts/tasks/separate-verifier">Harbor separate verifier</a><a data-src="responses_api_agents/harbor_agent/README.md">Gym 中现有 Harbor bridge</a></p>
-<div class="grid2"><div class="card"><h3>已有集成说明：它们可以组合</h3><p><code>responses_api_agents/harbor_agent</code> 在 Gym 里启动 Harbor Job，读 trial <code>result.json</code> 和 trajectory，再转换成 Gym response、usage 与 reward。</p><p>此快照的 <code>harbor_agent</code> 固定 Harbor <code>9dddd797…</code>；另一份 <code>harbor_agent_general</code> 声明 <code>harbor&gt;=0.22</code>。当前 upstream 文档的功能，不能直接算作旧 pin 已验证的功能。</p><p class="sources"><a data-src="responses_api_agents/harbor_agent/app.py" data-line="240">bridge.run()</a><a data-src="responses_api_agents/harbor_agent/requirements.txt">固定依赖</a></p></div><div class="card"><h3>具体问题比框架标签更有用</h3><p>本快照的 Gym Harbor bridge 异常分支会构造 <code>reward=0.0</code>；这是<strong>Gym 该适配层</strong>的代码事实，不是“Harbor 所有错误都算零”的结论。</p><p>Hermes 的旧 runner 使用 native counters，但已有 board probe 复现 cache token 漏算；新 adapter/capture 是另一条路径。可靠的设计要写清统计口径，再比较输出，不能靠换框架名字消除差异。</p><p class="sources"><a data-src="responses_api_agents/harbor_agent/app.py" data-line="312">异常分支</a><a href="@@BOARD@@/findings/2026-10-02-harness-native-usage-vs-capture.md">已复核的 usage 差异</a></p></div></div>
+<div class="grid2"><div class="card"><h3>已有集成说明：它们可以组合</h3><p><code>responses_api_agents/harbor_agent</code> 在 Gym 里启动 Harbor Job，读 trial <code>result.json</code> 和 trajectory，再转换成 Gym response、usage 与 reward。</p><p>此快照的 <code>harbor_agent</code> 固定 Harbor <code>9dddd797…</code>；另一份 <code>harbor_agent_general</code> 声明 <code>harbor&gt;=0.22</code>。当前 upstream 文档的功能，不能直接算作旧 pin 已验证的功能。</p><p class="sources"><a data-src="responses_api_agents/harbor_agent/app.py" data-line="240">bridge.run()</a><a data-src="responses_api_agents/harbor_agent/requirements.txt">固定依赖</a></p></div><div class="card"><h3>具体问题比框架标签更有用</h3><p>本快照的 Gym Harbor bridge 异常分支会构造 <code>reward=0.0</code>；这是<strong>Gym 该适配层</strong>的代码事实，不是“Harbor 所有错误都算零”的结论。</p><p>本页 native smoke 保存的 usage 零值没有足够证据代表真实 token 总量。比较框架时，应检查模型 capture 与 harness counters 的统计口径；缺失信息保留 unknown。</p><p class="sources"><a data-src="responses_api_agents/harbor_agent/app.py" data-line="312">异常分支</a><a href="@@BOARD@@/findings/2026-10-02-harness-native-usage-vs-capture.md">已复核的 usage 差异</a></p></div></div>
 <h3>三种选择，按任务来判断</h3><div class="grid3"><div class="card"><div class="kicker">更快跑通已有 Harbor 任务</div><h3>直接 Harbor</h3><p>适合任务本来就是 Harbor 格式、重点在评测 agent。代价是若还需要 Gym 的数据/训练接口，之后要补桥接并验证语义。</p></div><div class="card"><div class="kicker">已有 Gym 数据与 verifier</div><h3>Gym 原生组合</h3><p>适合复用 Resources、模型入口及混合环境基础设施。代价是服务与 session 管理较多，这个 native Hermes 配方也仍是 eval-only。</p></div><div class="card"><div class="kicker">两边都有资产</div><h3>Gym + Harbor bridge</h3><p>适合保留已有 Harbor trials，又接 Gym 的结果和模型接口。代价是双层版本、timeout、artifact 和 failure 映射需要共同维护。</p></div></div>
 <p class="small">以上选型是基于接口和代码的工程判断，不是速度或准确率实验。更轻的单进程脚本也是合理起点：部署简单，但并发、断点恢复、资源清理、评分口径都要自己维护。真正需要跨主机的持久化恢复时，可评估工作流引擎；它会增加运维与活动幂等设计成本，本教程没有证明必须迁移。</p>
 </section>
@@ -139,7 +166,7 @@ gym eval run --no-serve \
 <section class="chapter" id="reading"><div class="section-head"><span class="section-num">14</span><div><h2>带着问题读代码</h2><p>不需要一次读完整个仓库。每一步只建立一个明确答案。</p></div></div>
 <div class="reading-route"><h3>第一遍：一小时内读出公共主线</h3>
 <ol class="reading-path">
-<li><div><a data-src="resources_servers/example_single_tool_call/configs/example_single_tool_call.yaml">从最小配方开始</a><br>圈出 instance / type / implementation；画出 agent、resources、model 和 legacy Environment 的引用。先确定“这次运行用了什么”。</div></li>
+<li><div><a data-src="resources_servers/example_single_tool_call/configs/example_single_tool_call.yaml">从最小配方开始</a><br>圈出 instance / type / implementation，辨认模型、工具声明与 verifier。接着读<a href="#run">第 12 章原生组合</a>，画出 Environment、Agent、Resources、Model 的引用。</div></li>
 <li><div><a data-src="resources_servers/example_single_tool_call/app.py" data-line="42">读天气 app.py 和它的样例数据</a><br>把工具声明、工具实现和 verifier 分开。解释它为什么会给 reward=1，以及这个分数没有测什么。</div></li>
 <li><div><a data-src="responses_api_agents/simple_agent/app.py" data-line="84">读 SimpleAgent 的 run 与 _create_episode</a><br>在纸上写下 seed → responses → verify，再展开 responses 中 model → tool → model 的循环。这里最容易真正理解 await 的等待对象。</div></li>
 <li><div><a data-src="nemo_gym/server_utils.py" data-line="694">读 ServerClient、BaseServer、SimpleServer</a><br>回答实例名如何变成 URL、类如何变成 FastAPI 服务、哪些数据经 JSON 穿过进程边界。先跳过观测和日志细节。</div></li>
@@ -151,7 +178,7 @@ gym eval run --no-serve \
 <div class="reading-route"><h3>第三遍：按你需要的方向深入</h3><div class="grid3"><div class="card"><h3>做环境</h3><p>重点读任务 schema、Resources seed / tools / verify，以及环境配置。先定义“答对”的证据和失败语义，再选 harness。</p></div><div class="card"><h3>跑大规模评测</h3><p>重点读 Collector、orchestration、sandbox provider 和 telemetry。先理解并发瓶颈、恢复与结果覆盖率。</p></div><div class="card"><h3>连接训练</h3><p>重点读模型 token 信息、token capture 和训练框架集成文档。确认进入 loss 的 token 与实际采样、评分轨迹一致。</p></div></div></div>
 
 <h3>先用 repo 问题检查理解</h3><details><summary>① 看到 ResourcesServer，是不是就意味着有容器？</summary><p>不是。它管理任务资源与验证；天气例子只返回 Python 对象。是否需要 sandbox 由具体任务决定。</p></details><details><summary>② instance name、实现目录名、上游模型名有什么区别？</summary><p>instance name 是本次配置中的节点标识；实现目录名决定加载哪份代码；上游模型名是发送给推理 provider 的模型标识。例如 policy_model 可以是一台 vllm_model 代理的实例名。</p></details><details><summary>③ 为什么不能只读 nemo_gym/ 就理解某个 benchmark？</summary><p>公共库提供可组合机制，具体任务数据、工具和评分规则在组件 / 配方中。反过来，只读某个 app.py 也会漏掉启动、路由与收集的公共行为。</p></details><details><summary>④ 所有 /run 都执行同一个基类生命周期吗？</summary><p>不是。原生 Environment 用 BaseEnvironmentServer 的 run_request 包住 run；legacy_agent 自己注册透传路由，把请求交回旧 Agent.run。读具体 setup_webserver 才能确认走哪条路。</p></details>
-<h3>再用 benchmark 问题检查理解</h3><details><summary>① 模型说“已修复”，但 patch 没有变化，应该信谁？</summary><p>信实际状态和 verifier。SWE-Pro 通过任务 sandbox 的 git diff 导出候选 patch，再在干净环境评分；自然语言承诺不构成测试通过。</p></details><details><summary>② async 并发从 2 调到 32，为什么可能更慢？</summary><p>模型队列、容器名额、网络连接池或测试资源先饱和，会增加等待和超时。协程能多等一些请求，但不会创造下游容量。先测各阶段延迟和资源，再调整限制。</p></details><details><summary>③ Agent 关闭了借来的 sandbox，为什么是 bug？</summary><p>Resources 还要提取仓库修改。Agent 应先清理自己启动的进程，再 disconnect；Resources 拥有 task sandbox，导出后才 stop。</p></details><details><summary>④ 当前 native 配方和成功样本是不是同一条执行路线？</summary><p>不是。教程当前源码使用 Environment → hermes_agent native sessions；真实成功样本来自旧 hermes_sandboxed_agent.run()。两者复用 Pro verifier 的思路，但 orchestrator、runtime pin、toolset 和异常处理不同。旧成功不能替新路线做端到端验收。</p></details>
+<h3>再用 benchmark 问题检查理解</h3><details><summary>① 模型说“已修复”，但 patch 没有变化，应该信谁？</summary><p>信实际状态和 verifier。SWE-Pro 通过任务 sandbox 的 git diff 导出候选 patch，再在干净环境评分；自然语言承诺不构成测试通过。</p></details><details><summary>② async 并发从 2 调到 32，为什么可能更慢？</summary><p>模型队列、容器名额、网络连接池或测试资源先饱和，会增加等待和超时。协程能多等一些请求，但不会创造下游容量。先测各阶段延迟和资源，再调整限制。</p></details><details><summary>③ Agent 关闭了借来的 sandbox，为什么是 bug？</summary><p>Resources 还要提取仓库修改。Agent 应先清理自己启动的进程，再 disconnect；Resources 拥有 task sandbox，导出后才 stop。</p></details><details><summary>④ 原生入口示例和成功样本，验证范围相同吗？</summary><p>两者都用 Environment → hermes_agent native sessions。成功 smoke 仍有 flat-row 入口适配，而本教程配置直接接 typed task；源码 revision 和预算也分别标明。内部生命周期已验证，不代表这份新入口组合已另跑模型验收。</p></details>
 <div class="card"><h3>证据与继续学习</h3><div class="linkrow"><a href="@@BOARD@@/findings/2026-10-02-gym-design-tutorial-evidence.md">本次源码与样本复核</a><a href="@@BOARD@@/runbooks/gym-design-tutorial-maintenance.md">页面维护 / 更新方法</a><a href="/architecture/">已有架构 / PR 地图</a><a href="/harness-handoff/">已有 benchmark handoff</a></div><p class="small" style="margin-top:18px">仓库链接固定到本教程读取的 SHA，避免 main 漂移后行号失效。页面是单文件快照；交互只切换本地讲解和模拟，不启动服务、不访问模型、不发送任务。运行命令为固定源码教程的改写模板，不宣称本次执行通过。</p></div>
 </section>
 <div class="status" id="copy-status" aria-live="polite"></div><footer class="footer">NeMo Gym · 从一个 episode 理解系统<br>内容核对：2026-10-02 America/Los_Angeles。源码静态检查 + 历史样本只读复核；未做新的模型 rollout 或 Harbor benchmark。<br><a href="/">← All pages</a> · <a href="#intro">回到开始 ↑</a></footer>
@@ -183,7 +210,7 @@ document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',(
 const S=(title,arrow,description,state,wait,code,why,file,line)=>({title,arrow,description,state,wait,code,why,file,line});
 const nativeSteps=[
 S('先把一道题变成可重复的输入','prepare.py → JSONL','prepare 固定数据 revision、evaluator commit 和 image digest，把 problem、requirements、interface 组成 prompt；运行脚本与 parser 嵌入 task data。','尚未创建 sandbox','下载数据 / 镜像元数据；只需预先准备','task = {instance_id, base_commit, image_digest,\n        responses_create_params, run_script, parser_script, ...}','镜像 tag 可漂移，固定 digest 和脚本版本有助于区分模型差异与环境变化。','benchmarks/swebench/pro/prepare.py',37),
-S('Collector 路由；兼容层装成 typed episode','Collector → Environment /run','同一配置把 flat row 送到 single_agent_turn_legacy；它生成 TaskId 与 EpisodeId，再进入新生命周期。当前配方不会调用 Hermes 的旧 /run。','TaskId + rollout_id + attempt 已确定','Environment 准入名额；之后才开始 episode deadline','SingleAgentTurnRequest(\n  episode_id={rollout_id, attempt},\n  task={task_id, task_input}\n)','逻辑 rollout 与物理 attempt 分开；兼容层避免为旧数据重写所有 prepare 脚本。','environment_servers/single_agent_turn_legacy/app.py',51),
+S('调用方构造 typed task / episode','HTTP client → single_agent_turn /run','调用方明确提供 TaskId、EpisodeId 和 SingleAgentTurnTaskInput；原生 Environment 先校验协议，再由 run_request 管理准入与生命周期。第 12 章给出不经过兼容入口的配置和请求。','TaskId + rollout_id + attempt 已确定','Environment 准入名额；之后才开始 episode deadline','SingleAgentTurnRequest(\n  episode_id={rollout_id, attempt},\n  task={task_id, task_input}\n)','逻辑采样和物理重试分开。这里讲的是原生协议；输入 JSONL 如何批量转换属于数据/收集层。','nemo_gym/base_environment_server.py',142),
 S('Resources 创建任务环境并保留所有权','Environment → Resources /seed_session','Resources 按 task image 创建 sandbox，准备 /app、记录 pristine untracked 文件；返回 session cookie 与 SandboxAccess。','Resources 拥有任务 sandbox A；workdir=/app','provider 创建 / readiness / 初始化命令','resources_id = new_id()\ncleanup.register(close_resources)\nseed = await resources.seed(resources_id, episode_id, task_data)','先登记 cleanup 再发请求：即使 seed 的 HTTP 响应丢失，仍知道关闭哪个 session。','environment_servers/single_agent_turn/app.py',106),
 S('Agent 建 session，借用同一个 sandbox','Environment → Agent /v1/agent_sessions','传 episode/task 身份、tool_accesses、sandbox_access。Hermes 使用 descriptor 连接 A，检查或安装固定 runtime，并上传 runner / supervisor。','Resources 拥有 A；Hermes 是借用方','connect / runtime 准备；还没进入 activation semaphore','owns_sandbox = body.sandbox_access is None\nsandbox = await AsyncSandbox.connect(descriptor, provider)\nstate = {sandbox, workdir, session_dir, owns_sandbox=False}','工作目录、镜像和任务状态由 Resources 决定。缺少访问时不会悄悄回退到宿主机执行。','responses_api_agents/hermes_agent/app.py',422),
 S('只激活一次；同样请求重试加入原任务','Environment → Agent /ng-rollout/<capture_key>/v1/responses','保存不可变输入，建立 state.task；在 Hermes semaphore 内启动容器进程。相同 session 的不同输入被拒绝。','A 中将启动一个 supervisor + Hermes worker','Agent activation 名额；然后是 sandbox.exec','if state.task is None:\n    state.activation_request = body.copy()\n    state.task = asyncio.create_task(activate())\nreturn await asyncio.shield(state.task)','网络重试不是再次采样；shield 保护共享 task，session close 才负责取消。可选 token capture 会在 URL 增加路径段。','responses_api_agents/hermes_agent/app.py',1064),
@@ -191,20 +218,90 @@ S('Hermes 执行模型 ↔ 工具循环','Runner → Model proxy → Inference�
 S('结束 activation，关闭 agent session','Environment → Agent /v1/agent_sessions/close','runner 保存输出与观察；supervisor 确认进程清理。借用方清理 session 文件并 disconnect，返回 close receipt。','A 仍由 Resources 保留；agent 工作进程已确认停下','进程退出、cleanup receipt、连接断开','await agent_cleanup.close()\n# 借用路径：terminate runner → retire files → disconnect\n# close 不确认成功，则不能进入 verify','模型回复完成不代表工具后台进程停止。未确认清理时保留 partial response，返回失败而不是评分。','responses_api_agents/hermes_agent/app.py',557),
 S('从实际文件导出 patch，然后停止 A','Environment → Resources /verify','Resources 根据 cookie 找 A，git add -N + git diff base_commit；通过文件下载保留 patch 字节，再过滤镜像自带的 untracked 文件。','候选 patch 已保存；Resources 尝试 stop A','git diff / download / stop','patch = await _extract_model_patch(session_id, base_commit)\n# 下载真实 diff 字节；finally 尝试停止任务 sandbox','agent 的最终文字不参与 patch 提取。typed session 的 sandbox 被消费后，重复 verify 报错，不能伪装成一次空 patch 评分。','resources_servers/swebench_pro/app.py',464),
 S('新建 B，应用 patch，运行真正的测试','Resources → fresh verifier sandbox B','重建任务镜像，reset 到 base commit，应用候选 patch 和 task verifier 资产，跑测试并解析结果。遇到 inconclusive 才在预算内新建 grader 重试。','Resources 拥有独立评分 sandbox B','镜像启动 / 依赖 / 测试命令；最后 stop B','passed = {t.name for t in output.tests if t.status == "PASSED"}\nresolved = patch_applied and (fail_to_pass | pass_to_pass) <= passed','代码是否修好由 required-pass 规则决定。有效失败测试是 0；评分基础设施没完成要单独审计 completed/error。','resources_servers/swebench_pro/verification.py',388),
-S('保存结果与证据；最终释放 session','Environment → Collector → artifacts','正常返回 verifier result 和 agent observations；失败返回 typed failure，经兼容层进入 failure sidecar。finally 在独立 cleanup 预算内关闭残留资源。','正常路径无活跃 A/B；异常残留需明确报告','最后的 cleanup / 持久化','result = {reward, model_patch, test_results,\n          evaluation_completed, ng_agent_observations, ...}\n# main JSONL / failure sidecar / materialized inputs','评分结果、模型 usage、cleanup 状态分别表达。本地 finally 不能替代主机崩溃后的 provider TTL。','nemo_gym/base_environment_server.py',160)
+S('返回 typed envelope，最终释放 session','Environment → HTTP client → saved result','正常返回 result 中的 verifier 结果与 agent observations；失败返回 failure。finally 在独立 cleanup 预算内关闭残留资源。客户端保存请求与响应，之后再做结果审计。','正常路径无活跃 A/B；异常残留需明确报告','最后的 cleanup / 客户端持久化','{episode_id, task_id, result, failure}\n# result 和 failure 恰有一个非空\n# caller saves native-response.json','批量 Collector 可以承担更多落盘与恢复职责；直接 HTTP 客户端不会自动生成整套 sidecar。本地 finally 也不能替代 provider TTL。','nemo_gym/base_environment_server.py',160)
 ];
-const oldBase='https://github.com/NVIDIA-NeMo/Gym/blob/7a19900a114f8c349c9fac031b016575e39cfa36/';
-const historicalSteps=[
-S('选取真实 positive-control 任务','原始完整数据 → row 516','既有运行从原数据选 OpenLibrary 题，问题与评分字段保持一致；事先刻意挑了短题，不用于估算 benchmark 准确率。','固定 task ID、输入 hash、镜像 digest','已完成运行的输入准备','source_row_sha256 == selected_row_sha256\noriginal_index = 516','本次只读 audit、input、rollout 与 raw report，未重新执行这次模型调用。','responses_api_agents/hermes_sandboxed_agent/README.md',1),
-S('旧 adapter 自己做 orchestrator','Collector → HermesSandboxedAgent.run()','旧路径由 hermes_sandboxed_agent 的 /run 协调 seed、runner、verify 和 cleanup；新 Environment 生命周期不在这次旧样本中。','adapter 持有本次调用上下文','Resources seed','run(): seed → attach → runner → verify → cleanup','旧、新路径在同一仓库共存；名字相近不代表代码和失败策略相同。','responses_api_agents/hermes_sandboxed_agent/app.py',1),
-S('Resources seed，agent attach','Resources → Docker A；Agent → connect A','任务容器含 /app 仓库；提前准备的独立 Hermes runtime 挂到 /opt/hermes，避免在每题安装依赖。','Resources 拥有 A；agent 借用','Docker create / runtime manifest 检查','runtime = /opt/hermes\nHermes commit = 2237be355…','旧 runtime 支持 glibc/musl 选择；本次成功只验证了这一个镜像，不是所有混合镜像。','responses_api_agents/hermes_sandboxed_agent/prepare_runtime.sh',1),
-S('18 次模型调用，26 次工具调用','Hermes → Gym model proxy → HSG N35','轨迹起始为 read_file 和 search_files；随后实际修改 observations.py。用的是旧 adapter 的工具组合，而不是新配方的 terminal-only 配置。','A 内文件发生真实变化','模型推理 / 工具执行；历史记录已完成','read_file("/app/openlibrary/core/observations.py")\nsearch_files(pattern="_sort_values", path="/app")','自然完成，30-turn 上限未耗尽。调用数量和使用量来自既有 audit，并用保存的工具记录核对计数。','responses_api_agents/hermes_sandboxed_agent/runner.py',1),
-S('保存结果，确认远程进程停止','runner → agent_result + cleanup receipt','保存的 receipt 为 cleanup_confirmed=true、return_code=0、timed_out=false。然后才允许调用 verifier。','A 仍可导出 patch；Hermes worker 已停','已保存的 cleanup receipt','response_status = "completed"\ncleanup_confirmed = true','本次核对的是历史 receipt，不声称重新执行了这次 cleanup 或查询当时容器。','responses_api_agents/hermes_sandboxed_agent/app.py',1),
-S('真实 diff → fresh grader','Resources：A 的 git diff → sandbox B','提取 1229-byte patch，修改 observations.py；在独立 B 里应用并运行原始 task verifier。','A 停止；B 用于评分','测试执行 / parser','patch_sha256 = 6aa2a571…0182f\nrequired FAIL_TO_PASS = 1\nrequired PASS_TO_PASS = 0','本次重新计算候选 hash，检查 raw report 与 rollout 内 test_results 完全一致。','resources_servers/swebench_pro/app.py',1),
-S('一个有证据的 reward=1','verifier → saved rollout','唯一必过测试 test_sort_values 为 PASSED；evaluation_completed=true；无 timeout；失败 sidecar 为空。','保存的结果可复核；此任务无新运行','磁盘结果复核，不发生模型请求','reward = 1.0\nrequired_missing = []\nrequired_nonpassing = {}','这证明这个旧 revision / 模型 / 题目的集成成功，不证明新 native recipe 或完整 benchmark 成绩。','resources_servers/swebench_pro/verification.py',1)
+const observedBase='https://github.com/NVIDIA-NeMo/Gym/blob/d5f13f54cf762c7e687dd2d50d2583efe2c9b717/';
+const observedSteps=[
+  {
+    "title": "固定任务与运行身份",
+    "arrow": "saved request → OpenLibrary row 55",
+    "description": "这次是针对原始数据第 55 行的真实模型 smoke：问题是导入校验，固定 base commit 和 image digest。审计的是保存的运行，不是本次新发起的请求。",
+    "state": "运行源码 d5f13f54c；episode 身份已确定",
+    "wait": "读取已完成的 artifacts",
+    "code": "model = nvidia/nemotron-3-super-120b-a12b\nmax_turns = 20; max_tokens = 4096",
+    "why": "外层历史驱动仍经过 flat-row 适配；以下实际执行为 native 生命周期。原生 typed 入口示例另做静态校验。",
+    "file": "environment_servers/single_agent_turn/app.py",
+    "line": 1
+  },
+  {
+    "title": "Resources seed → Hermes seed",
+    "arrow": "/seed_session → /v1/agent_sessions",
+    "description": "事件日志中这两个请求依次返回 200。Resources 创建任务 sandbox；Hermes 用 SandboxAccess 连接，并在借用的环境里准备 runtime。",
+    "state": "Resources 拥有 A，Hermes 借用 A",
+    "wait": "OpenSandbox 服务与 Docker 创建 / 初始化",
+    "code": "resources.seed_session → HTTP 200\nhermes.agent_sessions → HTTP 200",
+    "why": "运行源码与新 session 实现匹配；不是旧 hermes_sandboxed_agent 的 /run 编排。",
+    "file": "responses_api_agents/hermes_agent/app.py",
+    "line": 1
+  },
+  {
+    "title": "单次 activation，20 次模型与工具循环",
+    "arrow": "/ng-rollout/<capture_key>/v1/responses",
+    "description": "这一次 activation 内保存了 20 次成功模型请求、20 个 terminal function_call 与 20 个结果。模型查找并修改 import_validator.py；循环都发生在任务 sandbox 内。",
+    "state": "A 内工作树被实际修改",
+    "wait": "NIM 推理，shell 工具执行",
+    "code": "terminal: find /app …\nterminal: cat /app/openlibrary/plugins/importapi/import_validator.py",
+    "why": "一次 Environment agent turn 指一次 activation，不意味着只采样一个模型回复。",
+    "file": "responses_api_agents/hermes_agent/sandbox_runner.py",
+    "line": 1
+  },
+  {
+    "title": "达到 turn 上限，最终摘要 422",
+    "arrow": "Hermes → model proxy → HTTP 422",
+    "description": "第 21 个模型请求用于最终摘要，被代理以 422 拒绝。保存 response.status=incomplete；已有文件改动与工具记录仍然保留，没有冒充自然完成。",
+    "state": "patch 候选仍在 A 的工作树",
+    "wait": "失败已结束；不再生成更多工具操作",
+    "code": "accepted_model_requests = 20\nfinal_summary_http_status = 422\nagent_status = incomplete",
+    "why": "到达模型预算、自然语言摘要失败与补丁正确性是不同信号，应分别报告。",
+    "file": "responses_api_agents/hermes_agent/sandbox_runner.py",
+    "line": 1
+  },
+  {
+    "title": "先关闭 agent，再进入 verify",
+    "arrow": "/v1/agent_sessions/close → /verify",
+    "description": "close 的结束时间 1790820355.4889352 早于 verify 开始时间 1790820355.4959767。事件表给出了顺序证据，Resources 之后仍可导出文件修改。",
+    "state": "Hermes session 关闭；Resources 仍拥有 A",
+    "wait": "已经保存的 close / verify 事件",
+    "code": "agent_close.end < resources_verify.begin",
+    "why": "清理 agent 进程与销毁任务 sandbox 分开，才能安全提取最后的 patch。",
+    "file": "environment_servers/single_agent_turn/app.py",
+    "line": 1
+  },
+  {
+    "title": "导出 11,273-byte patch，在干净环境评分",
+    "arrow": "Resources git diff → fresh grader",
+    "description": "原始 patch.diff 与 episode.model_patch 字节一致；原始 output.json 与保存的 test_results 一致。18 个测试全部 PASSED，包括 3 个 FAIL_TO_PASS 和 15 个 PASS_TO_PASS。",
+    "state": "任务 A 被消费；评分用独立 sandbox",
+    "wait": "测试与 parser；结束后清理",
+    "code": "reward = 1\nevaluation_completed = true\nrequired_passed = 18 / 18",
+    "why": "这证明实际 patch 通过指定评分器；不能推出整个仓库测试通过或 benchmark 总体准确率。",
+    "file": "resources_servers/swebench_pro/app.py",
+    "line": 1
+  },
+  {
+    "title": "Resources close，留下可审计结果",
+    "arrow": "/close_session → saved artifacts",
+    "description": "Resources close 返回 200，Environment /run 返回 200。保存的 cleanup receipt 中 remaining_before_fallback=[]；本次没有重新查询历史容器。",
+    "state": "历史收据没有 fallback 前残留",
+    "wait": "只读结果与源码 hash 核对",
+    "code": "agent_status = incomplete\nreward = 1; evaluation_completed = true",
+    "why": "5 个关键源码文件 hash 对齐运行 pin。没有旧 Hermes /run 调用，也不把这份记录冒充为本章纯 typed HTTP 入口的新验收。",
+    "file": "nemo_gym/base_environment_server.py",
+    "line": 1
+  }
 ];
 let flowMode='native',step=0;
-function renderFlow(){const items=flowMode==='native'?nativeSteps:historicalSteps;step=Math.min(step,items.length-1);const d=items[step];document.getElementById('flow-version').textContent=flowMode==='native'?'源码 3ef478df1 · 当前代码讲解':'运行 2026-10-01 · 源码 7a19900a1';const nav=document.getElementById('flow-steps');nav.replaceChildren();items.forEach((s,i)=>{const b=document.createElement('button');b.textContent=String(i+1).padStart(2,'0')+' '+s.title;b.setAttribute('aria-current',i===step?'step':'false');b.addEventListener('click',()=>{step=i;renderFlow();});nav.append(b);});document.getElementById('step-kicker').textContent=(flowMode==='native'?'NATIVE LIFECYCLE':'SAVED REAL RUN')+' / STEP '+(step+1);for(const [id,key] of [['step-title','title'],['step-arrow','arrow'],['step-description','description'],['step-state','state'],['step-wait','wait'],['step-code','code'],['step-why','why']])document.getElementById(id).textContent=d[key];const link=document.getElementById('step-source');link.href=(flowMode==='native'?sourceBase:oldBase)+d.file+(d.line>1?'#L'+d.line:'');document.getElementById('flow-counter').textContent=(step+1)+' / '+items.length;document.getElementById('flow-prev').disabled=step===0;document.getElementById('flow-next').disabled=step===items.length-1;}
+function renderFlow(){const items=flowMode==='native'?nativeSteps:observedSteps;step=Math.min(step,items.length-1);const d=items[step];document.getElementById('flow-version').textContent=flowMode==='native'?'源码 3ef478df1 · 纯 typed 入口讲解':'运行 2026-09-30 PDT · 源码 d5f13f54c';const nav=document.getElementById('flow-steps');nav.replaceChildren();items.forEach((s,i)=>{const b=document.createElement('button');b.textContent=String(i+1).padStart(2,'0')+' '+s.title;b.setAttribute('aria-current',i===step?'step':'false');b.addEventListener('click',()=>{step=i;renderFlow();});nav.append(b);});document.getElementById('step-kicker').textContent=(flowMode==='native'?'NATIVE LIFECYCLE':'SAVED REAL RUN')+' / STEP '+(step+1);for(const [id,key] of [['step-title','title'],['step-arrow','arrow'],['step-description','description'],['step-state','state'],['step-wait','wait'],['step-code','code'],['step-why','why']])document.getElementById(id).textContent=d[key];const link=document.getElementById('step-source');link.href=(flowMode==='native'?sourceBase:observedBase)+d.file+(d.line>1?'#L'+d.line:'');document.getElementById('flow-counter').textContent=(step+1)+' / '+items.length;document.getElementById('flow-prev').disabled=step===0;document.getElementById('flow-next').disabled=step===items.length-1;}
 document.getElementById('flow-mode').addEventListener('change',e=>{flowMode=e.target.value;step=0;renderFlow();});document.getElementById('flow-prev').addEventListener('click',()=>{step--;renderFlow();});document.getElementById('flow-next').addEventListener('click',()=>{step++;renderFlow();});renderFlow();
 async function copyText(value){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(value);}else{const el=document.createElement('textarea');el.value=value;el.style.position='fixed';el.style.opacity='0';document.body.append(el);el.select();const ok=document.execCommand('copy');el.remove();if(!ok)throw Error('copy unavailable');}return true;}catch{return false;}}
 document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{const ok=await copyText(document.getElementById(b.dataset.copy).textContent);b.textContent=ok?'已复制':'请选中文本复制';document.getElementById('copy-status').textContent=ok?'已复制所选命令。请在填写配置、检查运行条件后使用。':'浏览器未允许复制，请直接选择代码块文本复制。';setTimeout(()=>b.textContent='复制',2200);}));
@@ -222,6 +319,6 @@ function wirePanels(kind){
 }
 wirePanels('repo');wirePanels('boot');
 
-window.tutorialAudit={repoPanels:10,bootSteps:7,sourceSha:'@@SHA@@',nativeSteps:nativeSteps.length,historicalSteps:historicalSteps.length,schedule};
+window.tutorialAudit={repoPanels:10,bootSteps:7,sourceSha:'@@SHA@@',nativeSteps:nativeSteps.length,observedSteps:observedSteps.length,schedule};
 </script>
 </body></html>

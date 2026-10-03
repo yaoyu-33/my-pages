@@ -1,0 +1,7 @@
+config_paths:
+  - responses_api_models/openai_model/configs/openai_model.yaml
+  - nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml
+
+policy_base_url: ${oc.env:POLICY_BASE_URL}
+policy_api_key: ${oc.env:POLICY_API_KEY}
+policy_model_name: ${oc.env:POLICY_MODEL_NAME}

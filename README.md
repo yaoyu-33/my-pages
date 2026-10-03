@@ -6,7 +6,9 @@
 The Chinese tutorial covers the whole NeMo Gym repository, shared contracts,
 serving and async, configuration and startup, a minimal weather-tool example,
 core design, evaluation/training boundaries, and SWE-Pro × Hermes with Harbor
-comparisons. All 14 chapters, interactions, source excerpts and embedded evidence
+comparisons. The current V3 edition teaches native `single_agent_turn` and Hermes
+sessions, with a verified native-session smoke and direct typed request examples.
+All 14 chapters, interactions, source excerpts and embedded evidence
 from the workstation edition are preserved. Only navigation targets are adapted
 for this GitHub project site; internal references retain their original addresses.
 
@@ -16,19 +18,25 @@ for this GitHub project site; internal references retain their original addresse
 - `gym-design-tutorial/index.html`: standalone tutorial; no external runtime assets.
 - `gym-design-tutorial/provenance.json`: source and published hashes, cited source
   file hashes and the precise navigation substitutions.
-- `tutorial-source/`: editable tutorial template, repo chapters, builder and evidence.
+- `tutorial-source/`: editable tutorial template, repo chapters, builder, native
+  evidence and copyable config/request examples. The older `evidence.json` is
+  retained as historical V2 provenance; the current builder uses `native-evidence.json`.
 - `tools/export_tutorial.py`: exports built tutorial HTML to this site.
 
 Code explanations are pinned to NeMo Gym
 `3ef478df1ee163134d32a3f291f0a9e5981d0e52`. The independently inspected historical
-Hermes smoke used `7a19900a114f8c349c9fac031b016575e39cfa36`. Publishing this site
+native Hermes smoke used `d5f13f54cf762c7e687dd2d50d2583efe2c9b717`: reward 1,
+18/18 required tests, and an incomplete agent / final-summary HTTP 422. The smoke
+used a flat-row outer adapter before the native lifecycle; the pure typed example
+has offline configuration/schema validation, not a new model run. Publishing this site
 does not rerun or validate a new benchmark configuration. The page preserves the
 difference between source walkthroughs, simulations and recorded runtime evidence.
 
 ## Update
 
 1. Edit `tutorial-source/index.template.html` or `tutorial-source/repo-chapters.html`.
-2. Build against an exact checkout of the pinned Gym revision:
+2. Keep `native-evidence.json`, `native-hermes.yaml` and `prepare-native-request.py`
+   beside the builder. Build against an exact checkout of the pinned Gym revision:
 
    ```sh
    python3 tutorial-source/build.py --source-root /path/to/pinned/Gym
