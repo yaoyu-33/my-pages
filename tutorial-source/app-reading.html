@@ -1,7 +1,7 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<div class="app-lab" id="app-lab">
-<div class="app-lab-intro"><span class="diagram-eyebrow">06A / LET'S READ APP.PY TOGETHER</span><h3>一起开一间小服务 🌱</h3><p>这一回我们把文件打开，一段一段读。先完整读天气 Resources，再对照 Model 和 Agent。每一步都指向固定版本的真实源码；绿色行是这一站的重点。</p><div class="app-lab-badges"><span>3 份 app.py</span><span>15 站陪读</span><span>真实 HTTP 记录</span><span>不需要调用模型</span></div></div>
+<div class="app-lab">
+<div class="app-lab-intro"><span class="diagram-eyebrow">05 / LET'S READ APP.PY TOGETHER</span><h3>一起开一间小服务 🌱</h3><p>这一回我们把文件打开，一段一段读。先完整读天气 Resources，再对照 Model 和 Agent。每一步都指向固定版本的真实源码；绿色行是这一站的重点。</p><div class="app-lab-badges"><span>3 份 app.py</span><span>15 站陪读</span><span>真实 HTTP 记录</span><span>不需要调用模型</span></div></div>
 <div class="app-glossary"><div><b>class / self</b><span>类定义一种服务；<code>self</code> 是当前实例。</span></div><div><b>config / body</b><span>启动时的设置 / 每次请求的数据。</span></div><div><b>server / app</b><span>Gym 服务对象 / FastAPI 路由与中间件应用。</span></div><div><b>Uvicorn</b><span>运行 ASGI 应用、监听端口的 HTTP server。</span></div></div>
 <div class="app-reader" aria-label="逐步读源码">
 <div class="app-kind-tabs" role="group" aria-label="选择要读的服务"><button data-app-kind="resources" aria-pressed="true">01 · Resources 小天气</button><button data-app-kind="model" aria-pressed="false">02 · Model 转接站</button><button data-app-kind="agent" aria-pressed="false">03 · Agent 跑腿员</button></div>

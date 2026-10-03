@@ -1,7 +1,7 @@
 {
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "workstation_html_sha256": "9b913c23f96bf491e494520ca9b9bc8df958d3f75bf38bb8e6b44dd1d30fa17b",
-  "public_html_sha256": "c2490bb55a85a8c5cfd7472ebe5c2f803fbb0a73381e73ee5388284871a30df0",
+  "workstation_html_sha256": "5acc255d9e02eba2f3a26f894db5af92b1602cb756bfdb37e5772a93913473de",
+  "public_html_sha256": "a61d575bd9071885eed3ff15634791adfc78f9a2d0cd0ad2fda1944a7500d573",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",

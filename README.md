@@ -3,14 +3,16 @@
 [Open the site](https://yaoyu-33.github.io/my-pages/) ·
 [Read the Gym tutorial](https://yaoyu-33.github.io/my-pages/gym-design-tutorial/)
 
-The Chinese tutorial covers the whole NeMo Gym repository, shared contracts,
-serving and async, configuration and startup, a minimal weather-tool example,
-core design, evaluation/training boundaries, and SWE-Pro × Hermes with Harbor
-comparisons. The V5 edition adds a guided server `app.py` reading lab with 15 steps across
+The Chinese tutorial starts with a minimal weather-tool example and a glossary,
+then covers shared contracts, serving and async, a guided `app.py` reading,
+configuration and startup, the repository map, core design and evaluation/training
+boundaries, and SWE-Pro × Hermes with Harbor comparisons. The V6 edition rewrites
+unclear wording, reorders chapters concrete-first and removes repeated
+explanations; all evidence and limitations are kept. V5 added a guided server `app.py` reading lab with 15 steps across
 Resources, Model and Agent examples, plus recorded loopback HTTP behavior. It retains a soft cream/mint/lavender theme, a small
 reading companion and twelve diagrams. It teaches native `single_agent_turn` and Hermes
 sessions, with a verified native-session smoke and direct typed request examples.
-All 14 chapters, interactions, source excerpts and embedded evidence
+All 15 chapters, interactions, source excerpts and embedded evidence
 from the workstation edition are preserved. Only navigation targets are adapted
 for this GitHub project site; internal references retain their original addresses.
 
