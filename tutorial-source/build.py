@@ -9,6 +9,7 @@ import json
 import textwrap
 from command_lesson import render as render_command_lesson
 from study_lesson import render as render_study_lesson
+from learning_guide import enhance as enhance_learning
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -17,6 +18,9 @@ parser.add_argument('--source-root', type=Path, default=Path('/private/tmp/gym-t
 args = parser.parse_args()
 SOURCE = args.source_root
 SHA = '3ef478df1ee163134d32a3f291f0a9e5981d0e52'
+mini = json.loads((ROOT / 'async-mini-evidence.json').read_text())
+assert mini['script_sha256'] == hashlib.sha256((ROOT/'async-mini-lab.py').read_bytes()).hexdigest()
+assert mini['result'] == 'PASS'
 evidence = json.loads((ROOT / 'native-evidence.json').read_text())
 summary = {
     'tutorial_source_sha': SHA,
@@ -73,6 +77,7 @@ for name, markup in zip(parts[1::2], parts[2::2]):
     template = template.replace('@@DIAGRAM_' + name.upper() + '@@', markup.strip())
 template = template.replace('@@ILLUSTRATED_CSS@@', (ROOT / 'illustrated.css').read_text())
 template = template.replace('@@ILLUSTRATED_JS@@', (ROOT / 'illustrated.js').read_text())
+template = enhance_learning(template, ROOT)
 for path in sorted(set(re.findall(r'data-src="([^"]+)"', template))):
     p = SOURCE / path
     if not p.is_file():
@@ -113,6 +118,8 @@ assert not re.search(r'@@\w+@@', template)
     'http_evidence_sha256': hashlib.sha256((ROOT / 'weather-http-evidence.json').read_bytes()).hexdigest(),
     'app_reading_steps': sum(len(e['steps']) for e in examples),
     'study_cases': 10,
+    'learning_questions': 7,
+    'async_mini_script_sha256': mini['script_sha256'],
     'command_steps': 8,
     'command_bundle_sha256': hashlib.sha256((ROOT / 'gym-benchmark-lab.zip').read_bytes()).hexdigest(),
     'evidence_sha256': hashlib.sha256((ROOT / 'native-evidence.json').read_bytes()).hexdigest(),

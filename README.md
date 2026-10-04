@@ -5,8 +5,12 @@
 
 The Chinese tutorial uses a weather-tool example to explain Gym's contracts,
 serving and async, server `app.py`, startup, repository structure, core design,
-and SWE-Pro × Hermes with Harbor comparisons. It has 16 chapters, 14 diagrams,
+and SWE-Pro × Hermes with Harbor comparisons. It has 16 chapters, 15 diagrams,
 a guided 15-step code reader and an eight-step benchmark command lab.
+The learning layer adds three study routes, a linked weather tool-call example,
+seven feedback questions and a standard-library async lab. Configuration precedence
+and task/rollout/attempt examples are checked against the pinned implementation.
+Static answer panels support reading without JavaScript and printing.
 
 [Chapter 16](https://yaoyu-33.github.io/my-pages/gym-design-tutorial/#run-log-study)
 adds ten anonymized lessons from historical run logs: protocol compatibility,
@@ -14,6 +18,12 @@ container runtimes, result denominators, verifier coverage, retry accounting,
 service lifetime, token usage, fair comparisons, reference exposure and diagnosis.
 It includes a denominator calculator and a downloadable run-log template.
 These are evidence-scoped lessons, not a new benchmark or a harness ranking.
+
+The 2026-10-04 revision received three successive reviews by three specialists:
+teaching structure, code/documentation accuracy, and serving/async explanations.
+It borrows instructional approaches from official Hugging Face courses, with
+attribution in the tutorial; its examples, diagrams and questions are original.
+This is editorial/source review and local validation, not a reader-learning study.
 
 ## Content and provenance
 
@@ -43,6 +53,13 @@ Gym's full CLI/Head stack or a model/agent rollout.
 Chapter 16 combines records from different historical revisions. Source links
 explain related mechanisms; they do not identify each historical run's revision.
 The complete case-to-record mapping remains in the restricted knowledge board.
+
+A separate current-code note was checked at
+`128eab40a08c5bab71171feb6a55ba294574bd29`. The native implementation and recipe
+files cited in that comparison are unchanged; optional W&B/MLflow SDK behavior
+is version-scoped. Examples and historical evidence keep their original pins.
+The local async lab uses Python standard-library timers, no services or models;
+`async-mini-evidence.json` records the script hash and observed in-flight counts.
 
 ## Privacy scope
 
@@ -78,14 +95,17 @@ Pattern checks supplement manual review; they cannot certify arbitrary logs.
    python3 tools/check_public_content.py .
    ```
 
-   `study_lesson.py` renders `run-log-lessons.json`, `run-log-lessons.html` and
+   `learning_guide.py` embeds `learning-guide.html/json/css/js`, the downloadable
+   `async-mini-lab.py` and its separate evidence record. Keep them together;
+   the builder verifies the lab's source hash. `study_lesson.py` renders `run-log-lessons.json`, `run-log-lessons.html` and
    `run-log-template.txt`. The app reader uses `app-reading.*`,
    `app-walkthrough.json` and the weather evidence. The benchmark lesson uses
    `command_lesson.py`, `benchmark-lab.*`, the YAML examples and task converter;
    its embedded ZIP is deterministic. Keep these inputs beside `build.py`.
 
 3. Exercise chapter navigation, source links, copy/download controls, the
-   denominator calculator and desktop/mobile layouts. Review both HTML and
+   denominator calculator, seven answer choices/static explanations, async-lab download
+   and desktop/mobile layouts. Review both HTML and
    downloadable evidence. Offline command validation is available through
    `validate-command-lab.py --source-root /path/to/pinned/Gym`; it does not
    certify a new model run. `verify-weather-lab.py` reproduces the HTTP lab.

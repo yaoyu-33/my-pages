@@ -1,0 +1,72 @@
+{
+  "result": "PASS",
+  "date": "2026-10-04 America/Los_Angeles",
+  "python_version": "3.13.14",
+  "script_sha256": "43c635fef76b5055f25d833ab30c78aaa1a8777966bbe79f8ae96ab7ca2e702c",
+  "observations": [
+    {
+      "created_coroutine_has_started": false
+    },
+    {
+      "mode": "sequential",
+      "peak_in_flight": 1,
+      "elapsed_seconds": 0.489,
+      "events": [
+        "A:start",
+        "A:end",
+        "B:start",
+        "B:end",
+        "C:start",
+        "C:end",
+        "D:start",
+        "D:end"
+      ]
+    },
+    {
+      "mode": "scheduled",
+      "peak_in_flight": 4,
+      "elapsed_seconds": 0.122,
+      "events": [
+        "A:start",
+        "B:start",
+        "C:start",
+        "D:start",
+        "A:end",
+        "B:end",
+        "C:end",
+        "D:end"
+      ]
+    },
+    {
+      "mode": "bounded",
+      "peak_in_flight": 2,
+      "elapsed_seconds": 0.243,
+      "events": [
+        "A:start",
+        "B:start",
+        "A:end",
+        "B:end",
+        "C:start",
+        "D:start",
+        "C:end",
+        "D:end"
+      ]
+    },
+    {
+      "mode": "blocking",
+      "peak_in_flight": 1,
+      "elapsed_seconds": 0.507,
+      "events": [
+        "A:start",
+        "A:end",
+        "B:start",
+        "B:end",
+        "C:start",
+        "C:end",
+        "D:start",
+        "D:end"
+      ]
+    }
+  ],
+  "scope": "Standard-library local timer demonstration; no HTTP, model, GPU, provider or subprocess; timings are not performance assertions."
+}

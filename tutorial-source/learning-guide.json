@@ -1,0 +1,81 @@
+[
+  {
+    "id": "config",
+    "prompt": "四处都设置了相同的键，最终取哪个值？",
+    "options": [
+      "2，基础配置最早定义它",
+      "3，最后的 CLI override 生效",
+      "4，配方比终端更正式"
+    ],
+    "answer": 1,
+    "feedback": "最终是 3；移除 CLI override 后是 env.yaml 的 1。按实际合并顺序检查，不能只看刚编辑的文件。",
+    "anchor": "config-precedence"
+  },
+  {
+    "id": "tool",
+    "prompt": "模型返回 get_weather 的 function_call，这时天气函数已经执行了吗？",
+    "options": [
+      "已经执行，工具名就是函数调用",
+      "还没有；Agent 需要派发请求，Resources 才执行"
+    ],
+    "answer": 1,
+    "feedback": "function_call 是结构化的行动请求。SimpleAgent 解码 arguments 后 POST，Resources handler 才真正执行；call_id 关联返回观察。",
+    "anchor": "weather-wire"
+  },
+  {
+    "id": "http",
+    "prompt": "POST /get_weather 的 body 是 {}，缺少 city，会停在哪？",
+    "options": [
+      "输入校验：422，尚未进入天气 handler",
+      "天气 handler 里：500",
+      "照常返回冷天气：200"
+    ],
+    "answer": 0,
+    "feedback": "路径与方法匹配之后，GetWeatherRequest 要求 city。缺字段被校验拒绝。若方法改为 GET，则会先在路由边界得到 405。",
+    "anchor": "diagram-http-trip"
+  },
+  {
+    "id": "task",
+    "prompt": "先 ta=create_task(a())、tb=create_task(b())，再 await ta、await tb，会因两行 await 而串行吗？",
+    "options": [
+      "会，await 永远只能逐个开始",
+      "不会；两项工作已经调度，非阻塞等待可以交错"
+    ],
+    "answer": 1,
+    "feedback": "要区分“创建协程对象”和“调度 Task”。逐个调用并 await 新协程是串行；先调度的 Tasks 不会被后面的等待顺序重新串行化。",
+    "anchor": "async-mini-lab"
+  },
+  {
+    "id": "provider",
+    "prompt": "看到 AsyncSandbox 接口，能断言它一定是隔离容器吗？",
+    "options": [
+      "能，sandbox 名字保证隔离",
+      "不能，要查看所选 provider 的能力"
+    ],
+    "answer": 1,
+    "feedback": "Docker / OpenSandbox 与 local 后端的能力不同。LocalProvider 在宿主机执行命令，不提供容器隔离；本教程 SWE-Pro 配方选的是容器后端。",
+    "anchor": "design"
+  },
+  {
+    "id": "retry",
+    "prompt": "整个 Environment /run 的响应丢了，原 ID 再发一次能保证绝不重复执行吗？",
+    "options": [
+      "不能；session 内 activation 去重不覆盖整个 /run",
+      "能，EpisodeId 是一个全局持久锁"
+    ],
+    "answer": 0,
+    "feedback": "Hermes state.task 属于存活的 Agent session。Environment /run 没有由这个 ID 自动带来的持久化去重。先查原执行与保存记录，再决定恢复 attempt。",
+    "anchor": "lifecycle"
+  },
+  {
+    "id": "result",
+    "prompt": "历史案例 reward=1、18 项 required tests 通过，但 agent status=incomplete，怎样写结论？",
+    "options": [
+      "整个系统已经完全成功",
+      "测试判定通过，同时保留 agent 未完成及 summary 422 的事实"
+    ],
+    "answer": 1,
+    "feedback": "判分、agent 完成状态与基础设施状态是不同维度。这一题的证据不能证明所有题、当前版本或新配置都正常。",
+    "anchor": "real"
+  }
+]

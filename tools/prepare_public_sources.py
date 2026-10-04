@@ -20,6 +20,8 @@ INPUTS = (
     'prepare-native-request.py', 'prepare-tutorial-tasks.py', 'repo-chapters.html',
     'validate-command-lab.py', 'validate_examples.py', 'verify-weather-lab.py',
     'weather-http-evidence.json', 'weather-lab.py',
+    'learning-guide.html', 'learning-guide.json', 'learning-guide.css', 'learning-guide.js',
+    'learning_guide.py', 'async-mini-lab.py', 'async-mini-evidence.json',
     'run-log-lessons.html', 'run-log-lessons.json', 'run-log-template.txt', 'study_lesson.py',
 )
 PRIVATE_URL = re.compile(

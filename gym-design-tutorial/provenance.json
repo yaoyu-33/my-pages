@@ -1,7 +1,7 @@
 {
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "public_source_html_sha256": "ce401c5822c9b6eddd9ab8aa330753900555b784532218d5d1b4c571f1df8649",
-  "public_html_sha256": "8990b45be0e85c910cf5827b21d350caed28e6c5dc1b8acf72006da98e480acc",
+  "public_source_html_sha256": "241e724bda90b709d0d8a75b3c49f34ca3e3fa3ddfafe9fc25f1bddc4441a9f8",
+  "public_html_sha256": "d13b3acddc408f059614c6539bd68add523358db49aaefcbbc738be38be6bdd5",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",
@@ -33,6 +33,7 @@
     "nemo_gym/sandbox/api.py": "5ecfe1797e0a9e6479828cd7804275a4d32bcae13e29340afb7c2fadafaced1c",
     "nemo_gym/sandbox/config.py": "36a113ab9e6be02b5e46c8ec535cb6f761409ab6295d7dcdad48f13026de740a",
     "nemo_gym/sandbox/providers/base.py": "3bde691a0159c9e0459345f20f857d9644926e2b773c60d6d6ac33272089496e",
+    "nemo_gym/sandbox/providers/local/provider.py": "38c6d6f13b14565c3d504147f00b8d7e0901f17db0e5692008659d545981e27e",
     "nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml": "9345aa731dd44faca8a75959db2f17fb45610389810ea52356a25878e18ab84e",
     "nemo_gym/server_utils.py": "92ffbbad19a6341393ac1373aa38ef020d1c62d057ad7e201856e6926adcf3d3",
     "nemo_gym/single_agent_turn_types.py": "f6b8d0384728df50d541e9653c75920c2478c9d33b36cf55e2747cbf8c649f3f",
@@ -65,6 +66,8 @@
   "app_reading_steps": 15,
   "command_steps": 8,
   "study_cases": 10,
+  "learning_questions": 7,
+  "async_mini_script_sha256": "43c635fef76b5055f25d833ab30c78aaa1a8777966bbe79f8ae96ab7ca2e702c",
   "command_bundle_sha256": "55731113b6d1e6536d92dadd6b03b6b4cfb682dd6c33257e747db96b8510da87",
   "navigation_replacements": {
     "href=\"/\"": 3

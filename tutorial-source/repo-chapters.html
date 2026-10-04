@@ -140,4 +140,4 @@ example_single_tool_call_simple_agent:     # 1. 此次运行中的实例名
 <p><code>train_data_utils.py</code> 处理数据，不是 optimizer；<code>gym eval submit</code> 提交运行，不是训练循环；<code>reward_profile</code> 统计奖励，不会改进模型。后面的 Pro × Hermes 配方，按它的文档是一条评测路径；不能因为 Gym 支持 RL，就认为它可以直接用于训练。</p>
 <p class="sources"><a data-src="fern/versions/latest/pages/training-tutorials/index.mdx">训练集成入口</a><a data-src="fern/versions/latest/pages/training-tutorials/external-agent-harnesses.mdx">token capture 的训练前提</a><a data-src="fern/versions/latest/pages/evaluation-tutorials/hermes-swe-bench-pro.mdx">Pro × Hermes 的支持范围</a></p>
 <div class="callout"><strong>到这里，基础部分就讲完了：</strong>配方选择组件 → 公共库启动并连接服务 → Collector 发任务 → Environment / Agent 组织执行 → Resources 验证 → 保存与分析。接下来把同一套思路放进复杂的 SWE-Pro × Hermes 案例。</div>
-</section>
+<div class="callout"><strong>provider 决定能力，名字不保证隔离。</strong> 它提供 create / connect / exec / stop 的实现，不一定是一台远程 server。Docker 与 OpenSandbox 用容器；<code>LocalProvider</code> 在宿主机执行命令，不提供隔离，也不会兑现 image / TTL / resources 限制。选择后端时，要看实现而不只看统一接口。<p class="sources"><a data-src="nemo_gym/sandbox/providers/local/provider.py" data-line="44">LocalProvider 的能力边界</a></p></div></section>

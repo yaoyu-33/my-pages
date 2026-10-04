@@ -33,6 +33,8 @@ provenance = {
     'app_reading_steps':manifest['app_reading_steps'],
     'command_steps':manifest['command_steps'],
     'study_cases':manifest['study_cases'],
+    'learning_questions':manifest['learning_questions'],
+    'async_mini_script_sha256':manifest['async_mini_script_sha256'],
     'command_bundle_sha256':manifest['command_bundle_sha256'],
     'navigation_replacements':{'href="/"':count},
     'content_changes':'Private artifact locations and internal reference URLs omitted from public inputs; see tutorial-source/public-redactions.json. Export only changes three homepage hrefs.',
