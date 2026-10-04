@@ -57,6 +57,7 @@ async def run(task):
 </section>
 
 <section class="chapter" id="bootstrap"><div class="section-head"><span class="section-num">06</span><div><h2>从一条命令到一组正在监听的服务</h2><p>先看服务是怎么启动的，再看请求是怎么跑的。两条线在服务入口处汇合。</p></div></div>
+<p><a href="#benchmark-lab">直接跳到本章八步命令路线 ↓</a> · 每步含 command、config、源码片段和预期结果。</p>
 <h3>读懂 YAML 的三层：实例名 → 组件类别 → 实现目录</h3>
 <pre><code># 节选自实际 weather 配置；模型配置由另一个 YAML 提供
 example_single_tool_call_simple_agent:     # 1. 此次运行中的实例名
@@ -85,6 +86,8 @@ example_single_tool_call_simple_agent:     # 1. 此次运行中的实例名
 </div></div>
 <div class="grid2"><div class="card"><h3>控制路径：建立这次运行</h3><p>CLI → 配置 → RunHelper → Head + 组件进程 → 就绪。关心的是：启动哪些服务、用哪份配置、谁负责启动和关闭。</p></div><div class="card"><h3>请求路径：处理一道题</h3><p>Collector → Environment → Agent / Resources → 模型代理 / sandbox。关心的是：这道题的输入、等待、状态和输出。</p></div></div>
 <details><summary>Ray、async、Uvicorn worker、Slurm：各自解决什么问题？</summary><div class="table-wrap"><table><thead><tr><th>机制</th><th>解决什么问题</th><th>不能据此推断</th></tr></thead><tbody><tr><td>async / await</td><td>一个进程在等待 I/O 时，让其他协程继续运行</td><td>不会因此多出 GPU 或容器容量。</td></tr><tr><td>Uvicorn worker</td><td>用多个服务进程接收请求</td><td>进程内的 dict / session 不会自动共享；有些 session 服务明确要求只用一个 worker。</td></tr><tr><td>Ray</td><td>部分组件使用的分布式任务执行能力</td><td>不是所有 HTTP 调用都会变成 Ray task。simple_agent 和天气服务都声明 ray_enabled=False，但 RunHelper 仍会为整次运行初始化 Ray。</td></tr><tr><td>Slurm submit</td><td>为整次运行申请计算资源，启动服务 / driver</td><td>不是每次工具调用都提交一个 sbatch。</td></tr></tbody></table></div><p class="sources"><a data-src="nemo_gym/server_utils.py" data-line="965">initialize_ray()</a><a data-src="responses_api_agents/simple_agent/app.py" data-line="80">simple_agent 的 Ray 选择</a><a data-src="nemo_gym/orchestration/submit.py" data-line="22">集群 submit</a></p></details>
+
+@@COMMAND_LESSON@@
 </section>
 
 <section class="chapter" id="repo"><div class="section-head"><span class="section-num">07</span><div><h2>现在看全貌：整个仓库的地图</h2><p>Gym = 公共底座 + 可替换组件 + 组合配方 + 数据与结果。</p></div></div>

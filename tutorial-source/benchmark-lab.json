@@ -1,0 +1,114 @@
+[
+  {
+    "id": "checkout",
+    "title": "准备一份固定版本的 Gym",
+    "label": "终端 A · 一次性准备",
+    "text": "先有 Python 环境和 Gym 命令，后面才能启动服务。用新目录检出本教程的版本，便于逐行对照；已有相同版本环境可以跳过安装。下面 shell 代码按 Bash 写，先在终端输入 bash。",
+    "command": "git clone https://github.com/NVIDIA-NeMo/Gym.git Gym-tutorial\ncd Gym-tutorial\ngit checkout --detach 3ef478df1ee163134d32a3f291f0a9e5981d0e52\nuv venv --python 3.13.14\nuv sync --extra dev --extra sandbox\nsource .venv/bin/activate\ngym env start --help\ngym eval run --help",
+    "expect": "能看到 CLI 帮助。Gym 控制程序装在这里；启动时各组件还会准备自己的 .venv。这里假定机器已安装 Git、uv、Bash 和 curl。",
+    "source": [
+      "pyproject.toml",
+      539,
+      549
+    ],
+    "code_note": "这个注册表把命令 gym 接到 Python main()。安装不是启动，看到帮助也不会消耗模型请求。"
+  },
+  {
+    "id": "connections",
+    "title": "准备配置文件，填好两条外部连接",
+    "label": "终端 A · Gym 仓库根目录",
+    "text": "下载下方配置包并解压到 Gym-tutorial 根目录，得到 tutorial-lab/。你还需要一个已可用的模型推理 endpoint，以及 OpenSandbox 服务。GYM_HOST 必须是这台 Gym 机器实际拥有、而且 sandbox 能访问的 IP；不要填 0.0.0.0 或容器自己的 localhost。",
+    "command": "# 将下载的 gym-benchmark-lab.zip 解压到当前目录\nunzip /path/to/gym-benchmark-lab.zip\n\n# 用自己的实际值替换尖括号内容\nexport GYM_HOST='<Gym 机器可达的 IP>'\nexport POLICY_BASE_URL='https://<模型 endpoint>/v1'\nexport POLICY_MODEL_NAME='<endpoint 实际提供的 model ID>'\nexport OPENSANDBOX_DOMAIN='https://<OpenSandbox endpoint>'\nread -rsp 'Model API key: ' POLICY_API_KEY; echo\nexport POLICY_API_KEY\nread -rsp 'OpenSandbox API key: ' OPENSANDBOX_API_KEY; echo\nexport OPENSANDBOX_API_KEY",
+    "expect": "tutorial-lab/ 中有 lab.yaml、native-hermes.yaml、model-provider.yaml 和转换脚本。key 只在终端环境变量中；下载包里没有真实地址或凭据。",
+    "source": [
+      "responses_api_models/openai_model/configs/openai_model.yaml",
+      1,
+      9
+    ],
+    "code_note": "policy_model 是 Gym 的模型代理实例；openai_base_url 才是实际推理服务。gym env start 会启动前者，模型权重加载和 GPU serving 由后者负责。"
+  },
+  {
+    "id": "data",
+    "title": "准备 SWE-Pro 数据，挑一题变成原生输入",
+    "label": "终端 A · 先做 1 题 × 1 次",
+    "text": "prepare.py 从固定数据版本和 evaluator 版本生成带 image digest、测试脚本和评分元数据的 JSONL。已有同一版本的 prepared 数据就可以跳过这一步；首次准备会下载数据、查询镜像信息。接着用本页的小脚本生成 Collector 的原生输入。",
+    "command": "python benchmarks/swebench/pro/prepare.py\n\npython tutorial-lab/prepare-tutorial-tasks.py \\\n  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \\\n  results/tutorial-001 --limit 1\n\npython -m json.tool results/tutorial-001/routing.yaml",
+    "expect": "生成 tasks.jsonl（题目）和 routing.yaml（taskset → Environment）。脚本为每个新目录生成独立 taskset，拒绝覆盖已有目录。tasks.jsonl 暂时没有 episode_id；Collector 发请求时补上它。",
+    "source": [
+      "nemo_gym/rollout_collection.py",
+      280,
+      292
+    ],
+    "code_note": "Collector 从 task_id.taskset 查 environment_server_routes。选择 taskset 模式时，误传 flat row 会直接报错；不会悄悄切换入口。"
+  },
+  {
+    "id": "resolve",
+    "title": "先看合并配置：这次究竟会启动谁",
+    "label": "终端 A · 只解析配置",
+    "text": "lab.yaml 把组件配置合起来；routing.yaml 决定输入发给哪个 Environment。resolve 会校验和填默认值，适合在真正启动前发现缺失参数或实例名错误。",
+    "command": "gym env resolve \\\n  --config tutorial-lab/lab.yaml \\\n  --config results/tutorial-001/routing.yaml \\\n  > results/tutorial-001/resolved.yaml\n\n# 打开文件检查实例、实现、连接和路由\nless results/tutorial-001/resolved.yaml",
+    "expect": "应看到 single_agent_turn、hermes_agent、swebench_pro_resources_server、policy_model 四个服务实例，以及 sandbox provider。Environment 实现为 single_agent_turn；Hermes toolsets 为 [terminal]；路由指向同一个实例。",
+    "source": [
+      "nemo_gym/cli/env.py",
+      1365,
+      1385
+    ],
+    "code_note": "dump_config() 调配置解析器，并启用 hide_secrets。解析通过只说明配置结构成立；端口能否绑定、网络、鉴权和生成要在启动/运行时验证。"
+  },
+  {
+    "id": "start",
+    "title": "启动 Gym 服务，保持这个终端运行",
+    "label": "终端 A · 前台运行",
+    "text": "这里刻意把启动和跑题分开，便于看清两者的关系。env start 管理 Head 和各服务子进程，等待就绪；它还没有提交 benchmark 题目。",
+    "command": "gym env start --config tutorial-lab/lab.yaml",
+    "expect": "首次启动可能先装组件依赖。日志会给出服务地址。Head 固定在本机 127.0.0.1:11000，组件监听 GYM_HOST 上的端口。若 11000 已被其他 Gym 使用，换一个空闲的运行环境，别关闭他人的进程。",
+    "source": [
+      "nemo_gym/cli/env.py",
+      496,
+      512
+    ],
+    "code_note": "父进程逐个启动组件，把全局配置和当前实例名注入子进程。组件最终调用 run_webserver()，注册 FastAPI 路由并交给 Uvicorn。"
+  },
+  {
+    "id": "collect",
+    "title": "另开终端，检查就绪，然后提交一题",
+    "label": "终端 B · 同一台机器、同一个 Gym 目录",
+    "text": "终端 A 保持运行。在终端 B 切到相同仓库并激活相同 .venv，也设置第 2 步的环境变量（新 shell 不会自动继承）。先确认 /readyz 返回 200 和 status=ok，再执行 eval run。",
+    "command": "cd /path/to/Gym-tutorial\nsource .venv/bin/activate\n# 按第 2 步设置同一组 export / read；再继续\n\ngym env status\ncurl --fail --silent --show-error http://127.0.0.1:11000/readyz\n\n# 仅在 readyz 成功后执行；输出文件属于这次新运行\ngym eval run --no-serve \\\n  --config tutorial-lab/lab.yaml \\\n  --config results/tutorial-001/routing.yaml \\\n  --input results/tutorial-001/tasks.jsonl \\\n  --output results/tutorial-001/rollouts.jsonl \\\n  --limit 1 --num-repeats 1 --concurrency 1",
+    "expect": "Collector 从 Head 获取运行中的服务地址，按 routing.yaml 派发 typed /run；Environment 再协调 seed → Hermes 模型/工具循环 → close → verify → cleanup。结果边完成边写入文件。",
+    "source": [
+      "nemo_gym/rollout_collection.py",
+      3424,
+      3432
+    ],
+    "code_note": "这几行是真正发 HTTP 的地方。_native_episode_request_body(row) 补 episode_id 并把题目放进 task；url_path=\"/run\" 指向选中的 Environment。"
+  },
+  {
+    "id": "results",
+    "title": "读结果，再按题目汇总",
+    "label": "终端 B · 收集结束后",
+    "text": "先看原始行，再看平均分。这里 HTTP 返回的 result 会被 Collector 展开成 rollout 顶层字段，所以 rollouts.jsonl 读取 r[\"reward\"]；第 13 章直接 curl 收到的 envelope 则读取 body[\"result\"][\"reward\"]。",
+    "command": "python - <<'CHECK'\nimport json\nfrom pathlib import Path\np = Path('results/tutorial-001')\nfor line in (p / 'rollouts.jsonl').read_text().splitlines():\n    r = json.loads(line)\n    print({k: r.get(k) for k in (\n        '_ng_task_index', '_ng_rollout_index', 'reward',\n        'evaluation_completed', 'mask_sample', 'failure_reason')})\n    print('agent status:', (r.get('response') or {}).get('status'))\nfailures = p / 'rollouts_failures.jsonl'\nprint('failure rows:', len(failures.read_text().splitlines())\n      if failures.exists() else 0)\nCHECK\n\ngym eval profile \\\n  --inputs results/tutorial-001/rollouts_materialized_inputs.jsonl \\\n  --rollouts results/tutorial-001/rollouts.jsonl",
+    "expect": "得到 reward_profiling、agent_metrics、repeat_level_metrics 文件。1 次采样只用于读流程，不能说明方差或总体 benchmark 水平。profile 默认要求输入/输出完整匹配；缺失时先查 failures 和日志。",
+    "source": [
+      "nemo_gym/rollout_collection.py",
+      364,
+      378
+    ],
+    "code_note": "成功的 result 被存成顶层字段，并附带 _ng_task_id；结构化 failure 则进入失败记录。对 SWE-Pro 同时检查 evaluation_completed、失败原因和 agent completion，避免把“没测完”当“答错”。"
+  },
+  {
+    "id": "finish",
+    "title": "看懂并发后扩大运行，最后收尾",
+    "label": "新运行用新目录；停止回终端 A",
+    "text": "跑通一题并检查轨迹后，再增加题数。下面只准备前 10 题；随后在第 6、7 步把 tutorial-001 换成 tutorial-010。转换脚本的 --limit 0 才是全部准备好的题目。",
+    "command": "# 独立的下一次运行：新 taskset、新结果目录\npython tutorial-lab/prepare-tutorial-tasks.py \\\n  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \\\n  results/tutorial-010 --limit 10\n\n# 重用第 6 步的 eval 命令，但修改：\n# 路径 tutorial-001 → tutorial-010\n# --limit 10 --num-repeats 1 --concurrency 1\n\n# 所有收集/汇总结束后，在终端 A 按 Ctrl-C\n# 在终端 B 确认本次服务已退出：\ngym env status",
+    "expect": "正常请求的 sandbox 清理由 Environment/Resources 完成；Ctrl-C 退出父进程并回收本次子进程。异常中断时还要检查本次 provider 资源和 TTL，不能仅凭终端退出认定远端容器已消失。",
+    "source": [
+      "nemo_gym/cli/env.py",
+      700,
+      721
+    ],
+    "code_note": "RunHelper.shutdown() 对保留的进程句柄收尾。不要用 killall/python 或停掉共享推理服务来结束一次教程运行。"
+  }
+]

@@ -363,6 +363,7 @@ SimpleWeatherResourcesServer.run_webserver()
 </section>
 
 <section class="chapter" id="bootstrap"><div class="section-head"><span class="section-num">06</span><div><h2>从一条命令到一组正在监听的服务</h2><p>先看服务是怎么启动的，再看请求是怎么跑的。两条线在服务入口处汇合。</p></div></div>
+<p><a href="#benchmark-lab">直接跳到本章八步命令路线 ↓</a> · 每步含 command、config、源码片段和预期结果。</p>
 <h3>读懂 YAML 的三层：实例名 → 组件类别 → 实现目录</h3>
 <pre><code># 节选自实际 weather 配置；模型配置由另一个 YAML 提供
 example_single_tool_call_simple_agent:     # 1. 此次运行中的实例名
@@ -391,6 +392,393 @@ example_single_tool_call_simple_agent:     # 1. 此次运行中的实例名
 </div></div>
 <div class="grid2"><div class="card"><h3>控制路径：建立这次运行</h3><p>CLI → 配置 → RunHelper → Head + 组件进程 → 就绪。关心的是：启动哪些服务、用哪份配置、谁负责启动和关闭。</p></div><div class="card"><h3>请求路径：处理一道题</h3><p>Collector → Environment → Agent / Resources → 模型代理 / sandbox。关心的是：这道题的输入、等待、状态和输出。</p></div></div>
 <details><summary>Ray、async、Uvicorn worker、Slurm：各自解决什么问题？</summary><div class="table-wrap"><table><thead><tr><th>机制</th><th>解决什么问题</th><th>不能据此推断</th></tr></thead><tbody><tr><td>async / await</td><td>一个进程在等待 I/O 时，让其他协程继续运行</td><td>不会因此多出 GPU 或容器容量。</td></tr><tr><td>Uvicorn worker</td><td>用多个服务进程接收请求</td><td>进程内的 dict / session 不会自动共享；有些 session 服务明确要求只用一个 worker。</td></tr><tr><td>Ray</td><td>部分组件使用的分布式任务执行能力</td><td>不是所有 HTTP 调用都会变成 Ray task。simple_agent 和天气服务都声明 ray_enabled=False，但 RunHelper 仍会为整次运行初始化 Ray。</td></tr><tr><td>Slurm submit</td><td>为整次运行申请计算资源，启动服务 / driver</td><td>不是每次工具调用都提交一个 sbatch。</td></tr></tbody></table></div><p class="sources"><a data-src="nemo_gym/server_utils.py" data-line="965">initialize_ray()</a><a data-src="responses_api_agents/simple_agent/app.py" data-line="80">simple_agent 的 Ray 选择</a><a data-src="nemo_gym/orchestration/submit.py" data-line="22">集群 submit</a></p></details>
+
+<!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<div id="benchmark-lab" class="benchmark-lab">
+<div class="command-intro"><div class="kicker">小豆的动手路线 · COMMAND → CONFIG → CODE</div><h3>把刚才的启动图，变成一条能照着走的路线</h3>
+<p>这一节用 <strong>SWE-bench Pro × Hermes</strong> 串起准备、启动、跑题、看结果和收尾。先跑一题，读懂每一个文件，再扩大规模。模型和 OpenSandbox 已部署好是前提；Gym 负责把它们和 benchmark 组织起来。</p>
+<p class="small">命令对应本页固定源码版本，配置、输入转换和 Collector 原生路由已离线检查。这里没有新跑模型；真实历史结果在<a href="#real">第 11 章</a>。第 13 章还保留直接 curl 一题的方式，方便理解 HTTP 请求。</p>
+<a class="command-download" id="download-benchmark-lab" download="gym-benchmark-lab.zip" href="data:application/zip;base64,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">↓ 下载本节配置与脚本（ZIP）</a>
+<details><summary>包内文件与完整配置</summary><p>解压后的 <code>tutorial-lab/</code> 放在 Gym 根目录。<code>README.md</code> 保存本节八步命令。转换脚本是教程辅助脚本，其余 YAML 组合仓库中已有的实现。</p><details><summary>native-hermes.yaml · 连接 Environment / Resources / Hermes</summary><div class="splitline"><span class="small">解压后路径：tutorial-lab/native-hermes.yaml</span><button class="copy" data-copy="lab-file-0">复制</button></div><pre><code id="lab-file-0"># SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Direct typed /run example; this does not register a flat-JSONL collector recipe.
+config_paths:
+  - resources_servers/swebench_pro/configs/swebench_pro.yaml
+  - responses_api_agents/hermes_agent/configs/hermes_agent.yaml
+  - environment_servers/single_agent_turn/configs/single_agent_turn.yaml
+
+hermes_agent:
+  responses_api_agents:
+    hermes_agent:
+      resources_server:
+        type: resources_servers
+        name: swebench_pro_resources_server
+      model: ${policy_model_name}
+      enabled_toolsets: [terminal]
+
+single_agent_turn:
+  environment_servers:
+    single_agent_turn:
+      resources_server:
+        type: resources_servers
+        name: swebench_pro_resources_server
+      agent_server:
+        type: responses_api_agents
+        name: hermes_agent
+</code></pre></details><details><summary>model-provider.yaml · 连接模型和 OpenSandbox</summary><div class="splitline"><span class="small">解压后路径：tutorial-lab/model-provider.yaml</span><button class="copy" data-copy="lab-file-1">复制</button></div><pre><code id="lab-file-1">config_paths:
+  - responses_api_models/openai_model/configs/openai_model.yaml
+  - nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml
+
+policy_base_url: ${oc.env:POLICY_BASE_URL}
+policy_api_key: ${oc.env:POLICY_API_KEY}
+policy_model_name: ${oc.env:POLICY_MODEL_NAME}
+</code></pre></details><details><summary>lab.yaml · 可达地址、Head、单题并发</summary><div class="splitline"><span class="small">解压后路径：tutorial-lab/lab.yaml</span><button class="copy" data-copy="lab-file-2">复制</button></div><pre><code id="lab-file-2"># SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+config_paths:
+  - tutorial-lab/native-hermes.yaml
+  - tutorial-lab/model-provider.yaml
+
+# Use an address assigned to this machine and reachable from the Linux sandbox.
+default_host: ${oc.env:GYM_HOST}
+# Run the Collector on this same machine; Head discovery defaults to this address.
+head_server:
+  host: 127.0.0.1
+  port: 11000
+
+single_agent_turn:
+  environment_servers:
+    single_agent_turn:
+      max_concurrent_episodes: 1
+</code></pre></details><details><summary>prepare-tutorial-tasks.py · 把 prepared rows 变成原生 tasks</summary><div class="splitline"><span class="small">解压后路径：tutorial-lab/prepare-tutorial-tasks.py</span><button class="copy" data-copy="lab-file-3">复制</button></div><pre><code id="lab-file-3"># SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+&quot;&quot;&quot;Prepare native Collector inputs; this tutorial helper makes no HTTP calls.&quot;&quot;&quot;
+
+import argparse
+import json
+from pathlib import Path
+from uuid import uuid4
+
+from nemo_gym.episode_types import MaterializedTask, TaskId
+from nemo_gym.single_agent_turn_types import SingleAgentTurnTaskInput
+
+
+def main() -&gt; None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;input&quot;, type=Path)
+    parser.add_argument(&quot;output_dir&quot;, type=Path, help=&quot;A new run directory; existing paths are refused&quot;)
+    parser.add_argument(&quot;--limit&quot;, type=int, default=1, help=&quot;Number of tasks; 0 selects all&quot;)
+    args = parser.parse_args()
+    if args.limit &lt; 0:
+        parser.error(&quot;--limit must be nonnegative&quot;)
+    taskset = f&quot;swebench_pro:{uuid4().hex}&quot;
+    tasks = []
+    seen = set()
+    with args.input.open() as source:
+        for line in source:
+            row = json.loads(line)
+            task = MaterializedTask[SingleAgentTurnTaskInput](
+                task_id=TaskId(taskset=taskset, task_id=row[&quot;instance_id&quot;]),
+                task_input=SingleAgentTurnTaskInput(
+                    responses_create_params=row[&quot;responses_create_params&quot;],
+                    task_data={
+                        k: v for k, v in row.items()
+                        if k not in {&quot;responses_create_params&quot;, &quot;agent_ref&quot;, &quot;task_source&quot;, &quot;skills_ref&quot;}
+                        and not k.startswith(&quot;_ng_&quot;)
+                    },
+                ),
+            )
+            if task.task_id.task_id in seen:
+                raise ValueError(f&quot;Duplicate instance_id: {task.task_id.task_id}&quot;)
+            seen.add(task.task_id.task_id)
+            tasks.append(task.model_dump(mode=&quot;json&quot;, exclude_unset=True))
+            if args.limit and len(tasks) &gt;= args.limit:
+                break
+    if not tasks:
+        raise ValueError(&quot;Input contains no tasks&quot;)
+    args.output_dir.mkdir(parents=True, exist_ok=False)
+    with (args.output_dir / &quot;tasks.jsonl&quot;).open(&quot;x&quot;) as output:
+        for task in tasks:
+            output.write(json.dumps(task) + &quot;\n&quot;)
+    # JSON is valid YAML; quoting the run-unique taskset avoids YAML key ambiguity.
+    with (args.output_dir / &quot;routing.yaml&quot;).open(&quot;x&quot;) as output:
+        json.dump({
+            &quot;environment_routing_mode&quot;: &quot;taskset&quot;,
+            &quot;environment_server_routes&quot;: {taskset: &quot;single_agent_turn&quot;},
+        }, output, indent=2)
+        output.write(&quot;\n&quot;)
+    print(f&quot;Prepared {len(tasks)} task(s) in {args.output_dir}; taskset={taskset}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></details><p class="small">下载包 SHA-256：<code id="command-bundle-sha">55731113b6d1e6536d92dadd6b03b6b4cfb682dd6c33257e747db96b8510da87</code></p></details></div>
+<figure class="diagram command-diagram" id="diagram-command-route"><figcaption><b>一张路线图：命令的职责并不相同</b><span>先启动接请求的服务，再启动发请求的 Collector。</span></figcaption>
+<div class="command-route"><div><b>终端 A · env start</b><span>配置 → Head + 4 个服务</span></div><span aria-hidden="true">↓ 等待 ready</span><div><b>终端 B · eval run --no-serve</b><span>tasks + routing → Collector → Environment /run</span></div><span aria-hidden="true">↓ session → 模型 / 工具 → verify → cleanup</span><div><b>保存文件 · eval profile</b><span>materialized inputs + rollouts → 每题汇总</span></div></div></figure>
+<nav class="command-jumps" aria-label="benchmark 命令步骤"><a href="#command-checkout">1 · 准备一份固定版本的 Gym</a><a href="#command-connections">2 · 准备配置文件</a><a href="#command-data">3 · 准备 SWE-Pro 数据</a><a href="#command-resolve">4 · 先看合并配置：这次究竟会启动谁</a><a href="#command-start">5 · 启动 Gym 服务</a><a href="#command-collect">6 · 另开终端</a><a href="#command-results">7 · 读结果</a><a href="#command-finish">8 · 看懂并发后扩大运行</a></nav>
+<article class="command-step" id="command-checkout">
+<div class="command-title"><span class="command-number">01</span><div><div class="kicker">终端 A · 一次性准备</div><h4>准备一份固定版本的 Gym</h4></div></div>
+<p>先有 Python 环境和 Gym 命令，后面才能启动服务。用新目录检出本教程的版本，便于逐行对照；已有相同版本环境可以跳过安装。下面 shell 代码按 Bash 写，先在终端输入 bash。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-1">复制</button></div>
+<pre><code class="lab-shell" id="command-code-1">git clone https://github.com/NVIDIA-NeMo/Gym.git Gym-tutorial
+cd Gym-tutorial
+git checkout --detach 3ef478df1ee163134d32a3f291f0a9e5981d0e52
+uv venv --python 3.13.14
+uv sync --extra dev --extra sandbox
+source .venv/bin/activate
+gym env start --help
+gym eval run --help</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>能看到 CLI 帮助。Gym 控制程序装在这里；启动时各组件还会准备自己的 .venv。这里假定机器已安装 Git、uv、Bash 和 curl。</p></div>
+<details><summary>一起看源码：pyproject.toml · L539–549</summary><p>这个注册表把命令 gym 接到 Python main()。安装不是启动，看到帮助也不会消耗模型请求。</p>
+<pre><code class="lab-source" data-file="pyproject.toml" data-start="539" data-end="549"> 539  [project.scripts]
+ 540
+ 541  gym = &quot;nemo_gym.cli.main:main&quot;
+ 542  ng = &quot;nemo_gym.cli.main:main&quot;
+ 543
+ 544  ########################## DEPRECATED COMMANDS ##########################
+ 545
+ 546  # Run/test scripts for servers.
+ 547  nemo_gym_run = &quot;nemo_gym.cli.legacy:main&quot;
+ 548  ng_run = &quot;nemo_gym.cli.legacy:main&quot;
+ 549  nemo_gym_test = &quot;nemo_gym.cli.legacy:main&quot;</code></pre>
+<p class="sources"><a data-src="pyproject.toml" data-line="539">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-connections">
+<div class="command-title"><span class="command-number">02</span><div><div class="kicker">终端 A · Gym 仓库根目录</div><h4>准备配置文件，填好两条外部连接</h4></div></div>
+<p>下载下方配置包并解压到 Gym-tutorial 根目录，得到 tutorial-lab/。你还需要一个已可用的模型推理 endpoint，以及 OpenSandbox 服务。GYM_HOST 必须是这台 Gym 机器实际拥有、而且 sandbox 能访问的 IP；不要填 0.0.0.0 或容器自己的 localhost。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-2">复制</button></div>
+<pre><code class="lab-shell" id="command-code-2"># 将下载的 gym-benchmark-lab.zip 解压到当前目录
+unzip /path/to/gym-benchmark-lab.zip
+
+# 用自己的实际值替换尖括号内容
+export GYM_HOST=&#x27;&lt;Gym 机器可达的 IP&gt;&#x27;
+export POLICY_BASE_URL=&#x27;https://&lt;模型 endpoint&gt;/v1&#x27;
+export POLICY_MODEL_NAME=&#x27;&lt;endpoint 实际提供的 model ID&gt;&#x27;
+export OPENSANDBOX_DOMAIN=&#x27;https://&lt;OpenSandbox endpoint&gt;&#x27;
+read -rsp &#x27;Model API key: &#x27; POLICY_API_KEY; echo
+export POLICY_API_KEY
+read -rsp &#x27;OpenSandbox API key: &#x27; OPENSANDBOX_API_KEY; echo
+export OPENSANDBOX_API_KEY</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>tutorial-lab/ 中有 lab.yaml、native-hermes.yaml、model-provider.yaml 和转换脚本。key 只在终端环境变量中；下载包里没有真实地址或凭据。</p></div>
+<details><summary>一起看源码：responses_api_models/openai_model/configs/openai_model.yaml · L1–9</summary><p>policy_model 是 Gym 的模型代理实例；openai_base_url 才是实际推理服务。gym env start 会启动前者，模型权重加载和 GPU serving 由后者负责。</p>
+<pre><code class="lab-source" data-file="responses_api_models/openai_model/configs/openai_model.yaml" data-start="1" data-end="9">   1  policy_model:
+   2    responses_api_models:
+   3      openai_model:
+   4        entrypoint: app.py
+   5        openai_base_url: ${policy_base_url}
+   6        openai_api_key: ${policy_api_key}
+   7        openai_model: ${policy_model_name}
+   8        openai_default_headers: {}
+   9        drop_input_reasoning_items: ${oc.env:POLICY_DROP_REASONING_ITEMS,false}</code></pre>
+<p class="sources"><a data-src="responses_api_models/openai_model/configs/openai_model.yaml" data-line="1">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-data">
+<div class="command-title"><span class="command-number">03</span><div><div class="kicker">终端 A · 先做 1 题 × 1 次</div><h4>准备 SWE-Pro 数据，挑一题变成原生输入</h4></div></div>
+<p>prepare.py 从固定数据版本和 evaluator 版本生成带 image digest、测试脚本和评分元数据的 JSONL。已有同一版本的 prepared 数据就可以跳过这一步；首次准备会下载数据、查询镜像信息。接着用本页的小脚本生成 Collector 的原生输入。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-3">复制</button></div>
+<pre><code class="lab-shell" id="command-code-3">python benchmarks/swebench/pro/prepare.py
+
+python tutorial-lab/prepare-tutorial-tasks.py \
+  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \
+  results/tutorial-001 --limit 1
+
+python -m json.tool results/tutorial-001/routing.yaml</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>生成 tasks.jsonl（题目）和 routing.yaml（taskset → Environment）。脚本为每个新目录生成独立 taskset，拒绝覆盖已有目录。tasks.jsonl 暂时没有 episode_id；Collector 发请求时补上它。</p></div>
+<details><summary>一起看源码：nemo_gym/rollout_collection.py · L280–292</summary><p>Collector 从 task_id.taskset 查 environment_server_routes。选择 taskset 模式时，误传 flat row 会直接报错；不会悄悄切换入口。</p>
+<pre><code class="lab-source" data-file="nemo_gym/rollout_collection.py" data-start="280" data-end="292"> 280      taskset = _materialized_taskset(row)
+ 281      if taskset is not None:
+ 282          try:
+ 283              return config.environment_server_routes[taskset]
+ 284          except KeyError as error:
+ 285              raise ValueError(f&quot;No environment server route is configured for taskset {taskset!r}&quot;) from error
+ 286      if config.environment_routing_mode == &quot;agent&quot;:
+ 287          return None
+ 288      if config.environment_routing_mode == &quot;legacy&quot;:
+ 289          return config.environment_server_name
+ 290      raise ValueError(
+ 291          &quot;taskset routing requires rows containing task_id.taskset and task_input; &quot;
+ 292          &quot;use environment_routing_mode=agent to mix materialized and flat rows in one batch&quot;</code></pre>
+<p class="sources"><a data-src="nemo_gym/rollout_collection.py" data-line="280">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-resolve">
+<div class="command-title"><span class="command-number">04</span><div><div class="kicker">终端 A · 只解析配置</div><h4>先看合并配置：这次究竟会启动谁</h4></div></div>
+<p>lab.yaml 把组件配置合起来；routing.yaml 决定输入发给哪个 Environment。resolve 会校验和填默认值，适合在真正启动前发现缺失参数或实例名错误。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-4">复制</button></div>
+<pre><code class="lab-shell" id="command-code-4">gym env resolve \
+  --config tutorial-lab/lab.yaml \
+  --config results/tutorial-001/routing.yaml \
+  &gt; results/tutorial-001/resolved.yaml
+
+# 打开文件检查实例、实现、连接和路由
+less results/tutorial-001/resolved.yaml</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>应看到 single_agent_turn、hermes_agent、swebench_pro_resources_server、policy_model 四个服务实例，以及 sandbox provider。Environment 实现为 single_agent_turn；Hermes toolsets 为 [terminal]；路由指向同一个实例。</p></div>
+<details><summary>一起看源码：nemo_gym/cli/env.py · L1365–1385</summary><p>dump_config() 调配置解析器，并启用 hide_secrets。解析通过只说明配置结构成立；端口能否绑定、网络、鉴权和生成要在启动/运行时验证。</p>
+<pre><code class="lab-source" data-file="nemo_gym/cli/env.py" data-start="1365" data-end="1385">1365  def dump_config():  # pragma: no cover
+1366      &quot;&quot;&quot;
+1367      Display the resolved Hydra configuration for debugging purposes.
+1368
+1369      Examples:
+1370
+1371      ```bash
+1372      gym env resolve &quot;+config_paths=[&lt;config1&gt;,&lt;config2&gt;]&quot;
+1373      ```
+1374      &quot;&quot;&quot;
+1375      global_config_dict = get_global_config_dict(
+1376          global_config_dict_parser_config=GlobalConfigDictParserConfig(
+1377              hide_secrets=True,
+1378          ),
+1379      )
+1380
+1381      # Just here for help
+1382      BaseNeMoGymCLIConfig.model_validate(global_config_dict)
+1383
+1384      print(OmegaConf.to_yaml(global_config_dict, resolve=True))
+1385</code></pre>
+<p class="sources"><a data-src="nemo_gym/cli/env.py" data-line="1365">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-start">
+<div class="command-title"><span class="command-number">05</span><div><div class="kicker">终端 A · 前台运行</div><h4>启动 Gym 服务，保持这个终端运行</h4></div></div>
+<p>这里刻意把启动和跑题分开，便于看清两者的关系。env start 管理 Head 和各服务子进程，等待就绪；它还没有提交 benchmark 题目。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-5">复制</button></div>
+<pre><code class="lab-shell" id="command-code-5">gym env start --config tutorial-lab/lab.yaml</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>首次启动可能先装组件依赖。日志会给出服务地址。Head 固定在本机 127.0.0.1:11000，组件监听 GYM_HOST 上的端口。若 11000 已被其他 Gym 使用，换一个空闲的运行环境，别关闭他人的进程。</p></div>
+<details><summary>一起看源码：nemo_gym/cli/env.py · L496–512</summary><p>父进程逐个启动组件，把全局配置和当前实例名注入子进程。组件最终调用 run_webserver()，注册 FastAPI 路由并交给 Uvicorn。</p>
+<pre><code class="lab-source" data-file="nemo_gym/cli/env.py" data-start="496" data-end="512"> 496              # TODO: This currently only handles relative entrypoints. Later on we can resolve the absolute path.
+ 497              entrypoint_fpath = Path(server_config_dict.entrypoint)
+ 498              assert not entrypoint_fpath.is_absolute()
+ 499
+ 500              # Resolve cwd-first (a local server), else the install location for built-ins.
+ 501              dir_path = _resolve_server_dir(Path(first_key, second_key))
+ 502
+ 503              # Name the venv in the logs: the server runs that venv&#x27;s interpreter (see _server_launch_command).
+ 504              print(f&quot;Starting `{top_level_path}` from venv {get_venv_path(dir_path, global_config_dict)}&quot;)
+ 505              command = _server_launch_command(dir_path, global_config_dict, top_level_path, entrypoint_fpath)
+ 506
+ 507              extra_env = {
+ 508                  NEMO_GYM_CONFIG_DICT_ENV_VAR_NAME: config_dict_yaml_str,
+ 509                  NEMO_GYM_CONFIG_PATH_ENV_VAR_NAME: top_level_path,
+ 510              }
+ 511              process = run_command(command, dir_path, server_name=top_level_path, extra_env=extra_env)
+ 512              self._processes[top_level_path] = process</code></pre>
+<p class="sources"><a data-src="nemo_gym/cli/env.py" data-line="496">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-collect">
+<div class="command-title"><span class="command-number">06</span><div><div class="kicker">终端 B · 同一台机器、同一个 Gym 目录</div><h4>另开终端，检查就绪，然后提交一题</h4></div></div>
+<p>终端 A 保持运行。在终端 B 切到相同仓库并激活相同 .venv，也设置第 2 步的环境变量（新 shell 不会自动继承）。先确认 /readyz 返回 200 和 status=ok，再执行 eval run。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-6">复制</button></div>
+<pre><code class="lab-shell" id="command-code-6">cd /path/to/Gym-tutorial
+source .venv/bin/activate
+# 按第 2 步设置同一组 export / read；再继续
+
+gym env status
+curl --fail --silent --show-error http://127.0.0.1:11000/readyz
+
+# 仅在 readyz 成功后执行；输出文件属于这次新运行
+gym eval run --no-serve \
+  --config tutorial-lab/lab.yaml \
+  --config results/tutorial-001/routing.yaml \
+  --input results/tutorial-001/tasks.jsonl \
+  --output results/tutorial-001/rollouts.jsonl \
+  --limit 1 --num-repeats 1 --concurrency 1</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>Collector 从 Head 获取运行中的服务地址，按 routing.yaml 派发 typed /run；Environment 再协调 seed → Hermes 模型/工具循环 → close → verify → cleanup。结果边完成边写入文件。</p></div>
+<details><summary>一起看源码：nemo_gym/rollout_collection.py · L3424–3432</summary><p>这几行是真正发 HTTP 的地方。_native_episode_request_body(row) 补 episode_id 并把题目放进 task；url_path=&quot;/run&quot; 指向选中的 Environment。</p>
+<pre><code class="lab-source" data-file="nemo_gym/rollout_collection.py" data-start="3424" data-end="3432">3424                  try:
+3425                      request_body = _native_episode_request_body(row) if _materialized_taskset(row) else row
+3426                      res = await server_client.post(server_name=server_name, url_path=&quot;/run&quot;, json=request_body)
+3427                      await raise_for_status(res)
+3428                      result = await get_response_json(res)
+3429                      # Independently-measured task wall-clock (ng_perf.total_latency_ms), not derived
+3430                      # from summed model-call/tool latencies to account for additional overhead.
+3431                      rollout_latency_ms = (time.time() - started_at) * 1000
+3432                      tracker.record(time.monotonic() - started)</code></pre>
+<p class="sources"><a data-src="nemo_gym/rollout_collection.py" data-line="3424">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-results">
+<div class="command-title"><span class="command-number">07</span><div><div class="kicker">终端 B · 收集结束后</div><h4>读结果，再按题目汇总</h4></div></div>
+<p>先看原始行，再看平均分。这里 HTTP 返回的 result 会被 Collector 展开成 rollout 顶层字段，所以 rollouts.jsonl 读取 r[&quot;reward&quot;]；第 13 章直接 curl 收到的 envelope 则读取 body[&quot;result&quot;][&quot;reward&quot;]。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-7">复制</button></div>
+<pre><code class="lab-shell" id="command-code-7">python - &lt;&lt;&#x27;CHECK&#x27;
+import json
+from pathlib import Path
+p = Path(&#x27;results/tutorial-001&#x27;)
+for line in (p / &#x27;rollouts.jsonl&#x27;).read_text().splitlines():
+    r = json.loads(line)
+    print({k: r.get(k) for k in (
+        &#x27;_ng_task_index&#x27;, &#x27;_ng_rollout_index&#x27;, &#x27;reward&#x27;,
+        &#x27;evaluation_completed&#x27;, &#x27;mask_sample&#x27;, &#x27;failure_reason&#x27;)})
+    print(&#x27;agent status:&#x27;, (r.get(&#x27;response&#x27;) or {}).get(&#x27;status&#x27;))
+failures = p / &#x27;rollouts_failures.jsonl&#x27;
+print(&#x27;failure rows:&#x27;, len(failures.read_text().splitlines())
+      if failures.exists() else 0)
+CHECK
+
+gym eval profile \
+  --inputs results/tutorial-001/rollouts_materialized_inputs.jsonl \
+  --rollouts results/tutorial-001/rollouts.jsonl</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>得到 reward_profiling、agent_metrics、repeat_level_metrics 文件。1 次采样只用于读流程，不能说明方差或总体 benchmark 水平。profile 默认要求输入/输出完整匹配；缺失时先查 failures 和日志。</p></div>
+<details><summary>一起看源码：nemo_gym/rollout_collection.py · L364–378</summary><p>成功的 result 被存成顶层字段，并附带 _ng_task_id；结构化 failure 则进入失败记录。对 SWE-Pro 同时检查 evaluation_completed、失败原因和 agent completion，避免把“没测完”当“答错”。</p>
+<pre><code class="lab-source" data-file="nemo_gym/rollout_collection.py" data-start="364" data-end="378"> 364      if not isinstance(result, Mapping):
+ 365          raise ValueError(f&quot;environment server reply for task {task_id!r} carries a non-object result: {result!r}&quot;)
+ 366      reserved = sorted(key for key in result if _is_collector_key(key))
+ 367      if reserved:
+ 368          raise ValueError(
+ 369              f&quot;environment server result for task {task_id!r} uses keys reserved for rollout collection: {reserved}&quot;
+ 370          )
+ 371      record = dict(result)
+ 372      record[NG_TASK_ID_KEY] = task_id
+ 373      return record
+ 374
+ 375
+ 376  @dataclass(frozen=True)
+ 377  class _CompletedRollout:
+ 378      &quot;&quot;&quot;A finished ``/run`` dispatch, with timing carried alongside (not inside) the raw result.&quot;&quot;&quot;</code></pre>
+<p class="sources"><a data-src="nemo_gym/rollout_collection.py" data-line="364">打开固定版本的完整文件</a></p></details></article>
+<article class="command-step" id="command-finish">
+<div class="command-title"><span class="command-number">08</span><div><div class="kicker">新运行用新目录；停止回终端 A</div><h4>看懂并发后扩大运行，最后收尾</h4></div></div>
+<p>跑通一题并检查轨迹后，再增加题数。下面只准备前 10 题；随后在第 6、7 步把 tutorial-001 换成 tutorial-010。转换脚本的 --limit 0 才是全部准备好的题目。</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-8">复制</button></div>
+<pre><code class="lab-shell" id="command-code-8"># 独立的下一次运行：新 taskset、新结果目录
+python tutorial-lab/prepare-tutorial-tasks.py \
+  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \
+  results/tutorial-010 --limit 10
+
+# 重用第 6 步的 eval 命令，但修改：
+# 路径 tutorial-001 → tutorial-010
+# --limit 10 --num-repeats 1 --concurrency 1
+
+# 所有收集/汇总结束后，在终端 A 按 Ctrl-C
+# 在终端 B 确认本次服务已退出：
+gym env status</code></pre>
+<div class="command-expect"><b>看到什么才算这一步完成？</b><p>正常请求的 sandbox 清理由 Environment/Resources 完成；Ctrl-C 退出父进程并回收本次子进程。异常中断时还要检查本次 provider 资源和 TTL，不能仅凭终端退出认定远端容器已消失。</p></div>
+<details><summary>一起看源码：nemo_gym/cli/env.py · L700–721</summary><p>RunHelper.shutdown() 对保留的进程句柄收尾。不要用 killall/python 或停掉共享推理服务来结束一次教程运行。</p>
+<pre><code class="lab-source" data-file="nemo_gym/cli/env.py" data-start="700" data-end="721"> 700      def shutdown(self) -&gt; None:
+ 701          memory_profiler = getattr(self, &quot;_memory_profiler&quot;, None)
+ 702          if memory_profiler is not None:
+ 703              memory_profiler.stop()
+ 704              self._memory_profiler = None
+ 705
+ 706          # Before the servers go, the gauge should read zero once the fleet is torn down.
+ 707          # The metric provider also needs an explicit flush or the last interval is lost.
+ 708          record_active_servers(0)
+ 709          shutdown_telemetry()
+ 710
+ 711          print(&quot;Sending interrupt signals to servers...&quot;)
+ 712          for process in self._processes.values():
+ 713              process.send_signal(SIGINT)
+ 714
+ 715          print(&quot;Waiting for processes to finish...&quot;)
+ 716          killed_process_names: List[str] = []
+ 717          unreaped_process_names: List[str] = []
+ 718          for process_name, process in self._processes.items():
+ 719              try:
+ 720                  process.wait(timeout=_GRACEFUL_SHUTDOWN_TIMEOUT_SEC)
+ 721              except TimeoutExpired:</code></pre>
+<p class="sources"><a data-src="nemo_gym/cli/env.py" data-line="700">打开固定版本的完整文件</a></p></details></article>
+<h4>一眼分清三份 JSON：同一道题在不同位置的形状</h4>
+<div class="grid3"><div class="card"><div class="kicker">准备脚本的输出</div><h4>tasks.jsonl</h4><pre><code>{"task_id": {...},
+ "task_input": {...}}</code></pre><p>题目身份和任务输入。路由从独立的 <code>routing.yaml</code> 读取。</p></div><div class="card"><div class="kicker">Collector 发出的 HTTP</div><h4>Environment /run</h4><pre><code>{"episode_id": {...},
+ "task": {"task_id": {...},
+          "task_input": {...}}}</code></pre><p>Collector 为每次 rollout / attempt 补上执行身份。不是把 JSONL 那一行原样 POST。</p></div><div class="card"><div class="kicker">Collector 保存的成功结果</div><h4>rollouts.jsonl</h4><pre><code>{"reward": 1,
+ "response": {...},
+ "_ng_task_index": 0,
+ "_ng_rollout_index": 0}</code></pre><p>展开 HTTP 的 result，再加收集器字段。这里是形状示意，reward 取决于真实测试。</p></div></div>
+<p class="sources"><a data-src="nemo_gym/rollout_collection.py" data-line="296">补 episode_id 的代码</a><a data-src="nemo_gym/episode_types.py" data-line="93">MaterializedTask 类型</a><a data-src="nemo_gym/single_agent_turn_types.py" data-line="19">SingleAgentTurnTaskInput 类型</a></p>
+<h4>并发先看这三个旋钮</h4><div class="table-wrap"><table><thead><tr><th>旋钮</th><th>这里的设置</th><th>它控制什么</th></tr></thead><tbody><tr><td>Collector <code>--concurrency</code></td><td>1</td><td>同时向 Environment 提交并等待多少题。调成 4 不会让单个模型调用快 4 倍。</td></tr><tr><td>Environment <code>max_concurrent_episodes</code></td><td>1（lab.yaml）</td><td>同时实际执行多少 episode。只把 Collector 调成 4，另外的请求仍会排队。</td></tr><tr><td>Hermes <code>concurrency</code> / 模型 / provider 容量</td><td>Hermes 继承 32；外部容量视部署而定</td><td>下游也有限额。先确认容量，再一起调整 Collector 和 Environment；不要把 FastAPI workers 当成这个旋钮。</td></tr></tbody></table></div>
+<p>尝试并发 2 时，先把 <code>lab.yaml</code> 的 <code>max_concurrent_episodes</code> 改成 2，重启终端 A 的本次服务，再用新结果目录和 <code>--concurrency 2</code>。<code>--num-repeats 2</code> 则是每题采样两次，和同时跑几题是两回事。</p>
+<h4>结果目录是你的实验笔记</h4><div class="table-wrap"><table><thead><tr><th>文件（都在本次 results 目录）</th><th>用途</th></tr></thead><tbody><tr><td><code>tasks.jsonl / routing.yaml</code></td><td>你准备的题目与原生路由。</td></tr><tr><td><code>resolved.yaml</code></td><td>启动前检查的合并配置；实际服务地址以运行日志和 Head 为准。</td></tr><tr><td><code>rollouts_materialized_inputs.jsonl</code></td><td>Collector 展开 repeats 后的输入快照，带 task/rollout 索引；profile 必须用这份配对。</td></tr><tr><td><code>rollouts.jsonl</code></td><td>完成的结果、轨迹、reward 和诊断字段。不能按行号对齐，要用索引。</td></tr><tr><td><code>rollouts_failures.jsonl</code></td><td>发生错误时的失败记录（若产生）；不是每个缺失输出都一定留下失败行。</td></tr><tr><td><code>rollouts_aggregate_metrics.json</code></td><td>收集结束后通过 Environment 的 aggregate_metrics 接口得到的汇总。</td></tr><tr><td><code>rollouts_reward_profiling.jsonl</code><br><code>rollouts_agent_metrics.json</code><br><code>rollouts_repeat_level_metrics.json</code></td><td>eval profile 的离线分析结果。单 repeat 的 repeat-level 结果可能为空。</td></tr></tbody></table></div>
+<details><summary>中断后重跑，以及“部分结果”的含义</summary><p>普通 <code>eval run</code> 默认会重写同路径的输出；新实验用新目录。要恢复同一次运行，保留原来的 tasks、routing、materialized inputs 和 rollouts，在完全相同的收集命令后加 <code>--resume</code>。不要重新运行转换脚本生成新 taskset 再冒充原实验。</p><p>native task 输入在 <code>task_input</code> 里，当前 Collector 不支持对它应用 <code>--temperature</code>、<code>--max-output-tokens</code> 等顶层 Responses override。请在生成输入或对应 Agent 配置时设置，并用 <code>env resolve</code> 核对。</p><p>如果只想查看已完成的一部分，给 <code>eval profile</code> 加 <code>++allow_partial_rollouts=True</code>；这样没有任何输出的题会被排除。报告时同时列完成数 / 预期数，不能把部分样本的均值当作整套成绩。</p></details>
+<div class="checkpoint"><strong>读完可以自己回答：</strong><details><summary>为什么启动成功之后，还需要 eval run？</summary><p><code>env start</code> 是把接电话的人安排好；<code>eval run</code> 才是一通通拨电话的 Collector。<code>eval profile</code> 读已有记录做统计，不重新调用模型。它们分别负责服务生命周期、题目执行和结果分析。</p></details></div>
+</div>
+<style>
+.benchmark-lab{margin-top:40px;scroll-margin-top:24px;min-width:0}.command-intro{padding:24px;background:#eef5ef;border:1px solid #c5dacb;border-radius:22px}.command-intro h3{margin-top:8px}.command-download{display:inline-block;background:#315e4c;color:#fff!important;border-radius:14px;padding:12px 18px;text-decoration:none;font-weight:700;margin:8px 0 14px}.command-route{display:grid;gap:8px;text-align:center;max-width:740px;margin:16px auto}.command-route>div{background:var(--paper,#fffdf7);border:1px solid #d7ccf0;border-radius:16px;padding:16px}.command-route b,.command-route span{display:block}.command-route>span{font-size:13px;color:#526459}.command-jumps{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}.command-jumps a{font-size:13px;padding:7px 10px;border:1px solid #d8cdef;border-radius:12px;background:#f6f0ff;text-decoration:none}.command-step{padding:22px;margin:18px 0;border:1px solid #dadccd;border-radius:22px;background:#fffdf8;scroll-margin-top:24px;min-width:0}.command-title{display:flex;gap:14px;align-items:center}.command-number{display:grid;place-items:center;width:46px;height:46px;flex:none;border-radius:16px;background:#e7def8;color:#654d80;font-size:20px;font-weight:800}.command-title h4{font-size:21px;margin:4px 0;line-height:1.4}.command-expect{background:#eff6f0;border-radius:12px;padding:14px 16px;margin:12px 0}.command-expect p{margin:5px 0 0}.benchmark-lab pre{max-width:100%;box-sizing:border-box}.benchmark-lab h4{scroll-margin-top:24px}.benchmark-lab figcaption span{display:block;font-size:13px;margin-top:4px}.benchmark-lab .grid3>div{min-width:0}.benchmark-lab summary,.benchmark-lab .small{overflow-wrap:anywhere}.benchmark-lab code{overflow-wrap:anywhere}.benchmark-lab pre code{overflow-wrap:normal}.benchmark-lab td{overflow-wrap:anywhere}@media(max-width:600px){.command-intro,.command-step{padding:16px}.command-title h4{font-size:18px}.command-number{width:38px;height:38px}.command-jumps a{flex:1 1 44%}}
+</style>
+
 </section>
 
 <section class="chapter" id="repo"><div class="section-head"><span class="section-num">07</span><div><h2>现在看全貌：整个仓库的地图</h2><p>Gym = 公共底座 + 可替换组件 + 组合配方 + 数据与结果。</p></div></div>
@@ -978,6 +1366,7 @@ index 000000000..64fcb6048
 <figure class="diagram" id="diagram-wiring" aria-labelledby="diagram-wiring-title"><div class="diagram-head"><div><span class="diagram-eyebrow">13 / YAML IS THE WIRING</span><h3 id="diagram-wiring-title">把 YAML 看成几根连接线</h3></div><p class="diagram-note"><code>name</code> 找实例；实现目录选代码。下面的名字直接对应本章配置。</p></div><div class="diagram-map config-map" data-edges="env:resources,env:agent,agent:model,resources:provider,model:inference"><div class="d-node lavender" data-node="env"><svg class="d-icon" aria-hidden="true"><use href="#icon-bean"/></svg><b>single_agent_turn</b><small>resources_server / agent_server</small></div><div class="d-node mint" data-node="resources"><svg class="d-icon" aria-hidden="true"><use href="#icon-key"/></svg><b>swebench_pro_<br>resources_server</b><small>管理任务与评分</small></div><div class="d-node peach" data-node="agent"><svg class="d-icon" aria-hidden="true"><use href="#icon-robot"/></svg><b>hermes_agent</b><small>model_server.name</small><code>enabled_toolsets: [terminal]</code></div><div class="d-node sky" data-node="model"><svg class="d-icon" aria-hidden="true"><use href="#icon-envelope"/></svg><b>policy_model</b><small>Gym 的模型代理实例</small></div><div class="d-node mint" data-node="provider"><svg class="d-icon" aria-hidden="true"><use href="#icon-house"/></svg><b>sandbox provider</b><small>OpenSandbox 实现 →<br>已部署的 OpenSandbox server</small></div><div class="d-node sky" data-node="inference"><svg class="d-icon" aria-hidden="true"><use href="#icon-chip"/></svg><b>推理 endpoint</b><small>base URL + served model ID</small></div></div><figcaption>本图对应第 13 章的原生单题示例。provider 是提供 create / connect / exec / stop 的实现，它连接的 OpenSandbox server 才是远程服务。配置连好之后，还需要向 Environment 发送符合 typed 格式的任务。</figcaption></figure>
 
 <p><code>single_agent_turn</code> 的 <code>/run</code> 可以直接接收 <code>SingleAgentTurnRequest</code>。要用它，三件事要一起改：配置选用原生实现，输入显式带上 task 和 episode，输出按 typed 格式读取。只改 YAML 里的一个名字，数据格式会对不上。</p>
+<p>想先用 CLI 跑完整收集流程，请看<a href="#benchmark-lab">第 06 章的八步操作路线</a>；这一章把 HTTP 输入和输出展开来读。</p>
 <h3>1. 配方：直接选择 single_agent_turn</h3><p><code>config_paths</code> 组合各组件的基础配置；下面的同名配置块补上实例之间的引用。<code>single_agent_turn</code> 既是实例名，也是选用的实现目录；<code>agent_server.name</code> 指向 <code>hermes_agent</code> 实例。这个例子没有用 <code>_inherit_from</code>，先看清这三条连线就够了。</p><div class="splitline"><span class="small">保存为 native-hermes.yaml</span><button class="copy" data-copy="native-config">复制</button></div><pre><code id="native-config"># SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION &amp; AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # Direct typed /run example; this does not register a flat-JSONL collector recipe.
@@ -1111,7 +1500,7 @@ curl --fail-with-body --silent --show-error \
   "failure": null
 }</code></pre><p>这是成功时的结构示意。失败时 <code>result=null</code>，<code>failure</code> 里包含原因、阶段和已有的部分结果。即使进入了 result，也要检查 <code>evaluation_completed</code>、<code>test_results</code>、patch 和 observations，再决定如何计分。</p>
 <div class="table-wrap"><table><thead><tr><th>证据</th><th>需要保留的内容</th></tr></thead><tbody><tr><td>身份与配置</td><td>请求、完整的 resolved config、代码 revision、数据集 / 评分器版本、镜像 digest。</td></tr><tr><td>agent / 模型</td><td>response.status、工具轨迹、模型请求状态、可信的 usage（没有就记 unknown）。</td></tr><tr><td>verifier</td><td>候选 patch、原始测试报告、必须通过的测试、evaluation_completed。</td></tr><tr><td>生命周期</td><td>seed / activation / close / verify 事件，超时或失败，cleanup 收据。</td></tr></tbody></table></div>
-<details id="compatibility"><summary>附注：仓库默认配方为什么还用 legacy 入口？只是配置没更新吗？</summary><p>在本教程的源码版本中，<code>benchmarks/swebench/pro/hermes.yaml</code> 接收的仍是准备好的 flat JSONL，所以它选用 <code>single_agent_turn_legacy</code> 来转换输入格式、展开输出。它内部走的已经是新的 Environment 生命周期和 Hermes sessions，和旧的 <code>hermes_sandboxed_agent /run</code> 不是一回事。</p><p><strong>结论：可以不用这个适配入口，但也不只是漏改了一个名字。</strong>本章的配置和转换脚本，展示了需要一起改的请求和返回格式。默认数据流程的迁移在 <a href="https://github.com/NVIDIA-NeMo/Gym/pull/3818">#3818</a> 中进行；编写本教程时它还没有合并，而且它的说明明确保留现有的 flat 配方、不会自动切换 Hermes。在它合并之前，不要把那条 CLI 数据路径当成已经验证过的行为。</p><p>所以两个结论各自成立：第 11 章的真实运行在外层经过这个适配器，证明了新生命周期能跑通；本章的纯 typed HTTP 示例是单独的教学组合，只做了静态校验。</p><p class="sources"><a data-src="benchmarks/swebench/pro/hermes.yaml">默认配方</a><a data-src="environment_servers/single_agent_turn_legacy/app.py" data-line="51">兼容转换</a><a data-src="nemo_gym/single_agent_turn_types.py">原生协议</a><a data-src="nemo_gym/base_environment_server.py" data-line="142">原生 /run 注册</a></p></details>
+<details id="compatibility"><summary>附注：仓库默认配方为什么还用 legacy 入口？只是配置没更新吗？</summary><p>在本教程的源码版本中，<code>benchmarks/swebench/pro/hermes.yaml</code> 接收的仍是准备好的 flat JSONL，所以它选用 <code>single_agent_turn_legacy</code> 来转换输入格式、展开输出。它内部走的已经是新的 Environment 生命周期和 Hermes sessions，和旧的 <code>hermes_sandboxed_agent /run</code> 不是一回事。</p><p><strong>结论：可以不用这个适配入口，但也不只是漏改了一个名字。</strong>本章的配置和转换脚本，展示了需要一起改的请求和返回格式。默认数据流程的迁移在 <a href="https://github.com/NVIDIA-NeMo/Gym/pull/3818">#3818</a> 中进行；编写本教程时它还没有合并，而且它的说明明确保留现有的 flat 配方、不会自动切换 Hermes。这描述的是默认配方的数据准备流程。若自己先转换为 materialized task，本页固定版本的 Collector 已支持 taskset 路由：<a href="#benchmark-lab">第 06 章</a>给出了显式配置和命令，并做了离线检查。</p><p>所以两个结论各自成立：第 11 章的真实运行在外层经过这个适配器，证明了新生命周期能跑通；本章的纯 typed HTTP 示例是单独的教学组合，只做了静态校验。</p><p class="sources"><a data-src="benchmarks/swebench/pro/hermes.yaml">默认配方</a><a data-src="environment_servers/single_agent_turn_legacy/app.py" data-line="51">兼容转换</a><a data-src="nemo_gym/single_agent_turn_types.py">原生协议</a><a data-src="nemo_gym/base_environment_server.py" data-line="142">原生 /run 注册</a></p></details>
 <div class="callout warn"><strong>这个 Hermes × SWE-Pro 集成目前只用于评测。</strong>Gym 能对接训练框架，但这个 harness 还没有提供 on-policy RL 所需的完整 token ID、轨迹和采样契约，<a data-src="fern/versions/latest/pages/evaluation-tutorials/hermes-swe-bench-pro.mdx">仓库文档</a>对此有明确说明。</div>
 </section>
 

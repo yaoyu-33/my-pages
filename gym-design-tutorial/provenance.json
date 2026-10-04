@@ -1,7 +1,7 @@
 {
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "workstation_html_sha256": "1fe7a90380487a47dc0c09dc4dcd7fc55597438927b689e232b99003dbac2e59",
-  "public_html_sha256": "ae7363d19089e1601d79c3f5a7926cd27151312ab1f6d5657747daf04027e64a",
+  "workstation_html_sha256": "44fa3ba4d45f3adb2802330ea3c679d2ab0b4ed52466f81c66f9c13ab52f3ebd",
+  "public_html_sha256": "33b242df494f0270cac500cd357cff40701d362ba098d47c25d811a672f864f4",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",
@@ -55,12 +55,15 @@
     "responses_api_agents/hermes_agent/sandbox_runner.py": "6aba8ca112ae53a8ba32484d55567dd1c935855ef6f5170fdf1feee479f8be58",
     "responses_api_agents/simple_agent/app.py": "879c8257b16aee6b528af2a45a5ffbe351ed9a01e64cb3e4f00fa2997b9a5854",
     "responses_api_models/openai_model/app.py": "a2c39352a1d54db0c3216a03a53dd3160dde4a55d05162fa085d4f585d14305b",
+    "responses_api_models/openai_model/configs/openai_model.yaml": "ac3ae8fc0d58e5ad2a5110efd95f6a90af3a801f932fcc22b355e90c3f21083e",
     "responses_api_models/vllm_model/configs/vllm_model_for_training.yaml": "4f59482b08b9f2632aa2ec1fb3de28e4f9e2b5a289e2a665c446de12e203de8e",
     "tests/unit_tests/test_server_utils.py": "cd165576f7d5266b8f592a2e0e70e3ca147cf103bff6db5a0842a88e755f013a"
   },
   "evidence_sha256": "6413b0f85f10aee8cdb8db35a10b0656ad4f50777f92871791c6329678d32cef",
   "http_evidence_sha256": "7bf3f4117fac83f7886484313459d51eb692a2a3014d43f532e20bc84ae89e6a",
   "app_reading_steps": 15,
+  "command_steps": 8,
+  "command_bundle_sha256": "55731113b6d1e6536d92dadd6b03b6b4cfb682dd6c33257e747db96b8510da87",
   "navigation_replacements": {
     "href=\"/\"": 3,
     "href=\"/architecture/\"": 1,

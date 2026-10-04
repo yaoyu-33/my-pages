@@ -6,11 +6,12 @@
 The Chinese tutorial starts with a minimal weather-tool example and a glossary,
 then covers shared contracts, serving and async, a guided `app.py` reading,
 configuration and startup, the repository map, core design and evaluation/training
-boundaries, and SWE-Pro × Hermes with Harbor comparisons. The V6 edition rewrites
+boundaries, and SWE-Pro × Hermes with Harbor comparisons. Chapter 06 now adds an [eight-step command lab](https://yaoyu-33.github.io/my-pages/gym-design-tutorial/#benchmark-lab): commands, configuration, source excerpts, expected results and a downloadable native Collector setup.
+The V6 edition rewrites
 unclear wording, reorders chapters concrete-first and removes repeated
 explanations; all evidence and limitations are kept. V5 added a guided server `app.py` reading lab with 15 steps across
 Resources, Model and Agent examples, plus recorded loopback HTTP behavior. It retains a soft cream/mint/lavender theme, a small
-reading companion and twelve diagrams. It teaches native `single_agent_turn` and Hermes
+reading companion and thirteen diagrams. It teaches native `single_agent_turn` and Hermes
 sessions, with a verified native-session smoke and direct typed request examples.
 All 15 chapters, interactions, source excerpts and embedded evidence
 from the workstation edition are preserved. Only navigation targets are adapted
@@ -50,6 +51,12 @@ difference between source walkthroughs, simulations and recorded runtime evidenc
    `weather-http-evidence.json`. Source snippets are extracted from the pinned
    checkout with their original line numbers; the new HTTP evidence is checked
    against the weather app hash. `verify-weather-lab.py` reproduces the HTTP checks.
+   The command lesson needs `command_lesson.py`, `benchmark-lab.html`,
+   `benchmark-lab.json`, `lab.yaml`, `model-provider.yaml`, and
+   `prepare-tutorial-tasks.py`. Its ZIP is embedded and generated deterministically;
+   `validate-command-lab.py --source-root /path/to/pinned/Gym` checks configuration,
+   task conversion, actual Collector planning/result unwrapping, synthetic reward
+   profiling and CLI parsing offline. These checks do not certify a new model run.
 2. Keep `native-evidence.json`, `native-hermes.yaml` and `prepare-native-request.py`
    beside the builder. Build against an exact checkout of the pinned Gym revision:
 
