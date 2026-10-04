@@ -1,0 +1,37 @@
+# Benchmark run log（公开分享版）
+
+## 1. 固定实验条件
+- 目的 / 假设：
+- 代码 revision / harness 版本 / 实际安装版本：
+- 数据 revision / task manifest hash / image digest：
+- 模型公开标识（不可公开时用匿名标签）/ 配置指纹：
+- prompt / sampling / token budget / timeout：
+- 实际 CPU、内存、网络限制（不要只抄 scheduler reservation）：
+- 对照组差异 / 已知不可比因素：
+
+## 2. 身份与覆盖
+- run 标签 / taskset / task_id / rollout_id / attempt：
+- planned / returned / 有原始 reward / verifier 完成：
+- required tests 全部有结果 / agent completed / confirmed passes：
+- 完整分母比例 / 已评分子集比例 / 未评分数：
+- 原始 rewards、masks 保持不变；派生统计规则：
+
+## 3. 故障事件（每条单独填写）
+- 阶段 + 相对时间 + 最后一个成功边界：
+- 可观察的症状 / 原始错误类型或状态：
+- 已证实的原因 / 尚未证实的推测：
+- 证据编号（公开版用匿名引用，不写内部文件路径）：
+- 重试层：HTTP / verifier（同 patch）/ episode（新 attempt）：
+- 决策、恢复集合、原始与恢复结果如何保留：
+
+## 4. 评分、轨迹与完整性
+- required test IDs、原始测试输出与 parser 状态是否对齐：
+- 主循环 / auxiliary / retry / judge 的 usage 统计边界：
+- 已知 usage / 未知 usage / 缺失调用或工具输出：
+- 是否暴露 solution / 隐藏测试；检查范围与限制：
+
+## 5. 收尾与下一步
+- agent close / task service 存活契约 / provider 资源回收证据：
+- 结果文件、输入快照、失败记录、汇总报告是否完整：
+- 本次证明了什么 / 没有证明什么 / 下一项具体检查：
+- 公开版已移除内部主机、地址、集群/队列/账号、绝对路径、作业号和凭据：

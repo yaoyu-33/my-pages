@@ -8,6 +8,7 @@ import html
 import json
 import textwrap
 from command_lesson import render as render_command_lesson
+from study_lesson import render as render_study_lesson
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -64,6 +65,7 @@ repo_front, repo_middle = (ROOT / 'repo-chapters.html').read_text().split('<!-- 
 template = template.replace('@@REPO_FRONT@@', repo_front).replace('@@REPO_MIDDLE@@', repo_middle)
 template = template.replace('@@APP_READING@@', reading)
 template = template.replace('@@COMMAND_LESSON@@', render_command_lesson(ROOT, SOURCE))
+template = template.replace('@@STUDY_LESSON@@', render_study_lesson(ROOT))
 template = template.replace('@@APP_READING_CSS@@', (ROOT / 'app-reading.css').read_text())
 template = template.replace('@@APP_READING_JS@@', (ROOT / 'app-reading.js').read_text())
 parts = re.split(r'<!-- SLOT: (\w+) -->', (ROOT / 'diagrams.html').read_text())
@@ -82,7 +84,7 @@ replacements = {
     'SHA': SHA,
     'WEATHER_FULL_SOURCE': html.escape((SOURCE / 'resources_servers/example_single_tool_call/app.py').read_text()),
     'WEATHER_LAUNCHER': html.escape((ROOT / 'weather-lab.py').read_text()),
-    'BOARD': 'https://gitlab-master.nvidia.com/yuya/how-to-run/-/blob/main',
+    'BOARD': '#publication-note',
     'ACTIVATION_SNIPPET': html.escape(snippet),
     'WEATHER_TOOL': html.escape(textwrap.dedent('\n'.join((SOURCE / 'resources_servers/example_single_tool_call/app.py').read_text().splitlines()[60:62]))),
     'WEATHER_VERIFY': html.escape(textwrap.dedent('\n'.join((SOURCE / 'resources_servers/example_single_tool_call/app.py').read_text().splitlines()[42:47]))),
@@ -110,6 +112,7 @@ assert not re.search(r'@@\w+@@', template)
     'html_sha256': hashlib.sha256(template.encode()).hexdigest(),
     'http_evidence_sha256': hashlib.sha256((ROOT / 'weather-http-evidence.json').read_bytes()).hexdigest(),
     'app_reading_steps': sum(len(e['steps']) for e in examples),
+    'study_cases': 10,
     'command_steps': 8,
     'command_bundle_sha256': hashlib.sha256((ROOT / 'gym-benchmark-lab.zip').read_bytes()).hexdigest(),
     'evidence_sha256': hashlib.sha256((ROOT / 'native-evidence.json').read_bytes()).hexdigest(),

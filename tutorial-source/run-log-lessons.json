@@ -1,0 +1,112 @@
+[
+  {
+    "id": "protocol",
+    "title": "服务 ready 了，还要检查第二轮调用",
+    "stage": "启动 / 模型协议",
+    "symptom": "第一轮模型 HTTP 200，工具也执行了；把工具结果送回模型时，第二轮却返回 422。",
+    "evidence": "历史多 harness smoke 里，第二轮 assistant 消息中的 reasoning 字段不被接收端 schema 接受。外层接口仍可能给出 HTTP 200 / reward 0，只看最外层状态会误判。",
+    "action": "smoke 至少走完“模型 → 工具 → 工具结果 → 模型 → verifier”。记录哪个组件返回错误、原始状态和响应体；流式调用还要检查终止事件，HTTP 200 后也可能出现 response.failed。",
+    "pitfall": "别把 health check、能列出 models 或一次简单问答，当成多轮工具协议已经兼容。",
+    "source": "nemo_gym/base_responses_api_model.py",
+    "evidence_key": "A"
+  },
+  {
+    "id": "runtime",
+    "title": "安装成功，要在实际任务镜像里证明",
+    "stage": "seed / runtime",
+    "symptom": "在控制机器上能跑的 CLI，进入某些任务容器后连第一轮推理都没有开始。",
+    "evidence": "历史运行在选定镜像上发现 Python 版本、libc 和依赖问题；另一次 smoke 发现 CLI 自动升级，前后两条路径实际用了不同版本。",
+    "action": "检查镜像 digest、架构、Python/Node、glibc/musl、证书、权限和基础命令。锁定 harness 并检查实际版本，覆盖不同镜像家族，保留安装 stdout/stderr。给 harness 独立运行时，保留任务原本的环境。",
+    "pitfall": "不要用替换整个任务镜像、升级任务系统 Python 来掩盖兼容问题；那可能已改变 benchmark。",
+    "source": "responses_api_agents/hermes_agent/app.py",
+    "evidence_key": "B"
+  },
+  {
+    "id": "coverage",
+    "title": "先数清楚分母，再看百分比",
+    "stage": "收集 / 报告",
+    "symptom": "仪表盘显示 52.30%，完整任务集报告却是 43.64%。两者可以来自同一份结果。",
+    "evidence": "一份历史记录有 731 道任务、610 行主结果和 121 条失败记录。319/610=52.30% 是主结果中的通过比例；319/731=43.64% 是确认通过数占原计划任务数。未评分仍然是未评分。",
+    "action": "并列记录 planned、returned、graded、required-test coverage、agent completed、confirmed passes。对原计划任务报完整分母，对已评分子集报条件分数，同时列出缺失。",
+    "pitfall": "不要把 failure 行补成“原始 reward=0”，也不要只报较高的条件分数。运行器 finished、agent completed 和题目通过是不同维度。",
+    "source": "nemo_gym/reward_profile.py",
+    "evidence_key": "C"
+  },
+  {
+    "id": "verifier",
+    "title": "测试命令结束，不等于必需测试都有结果",
+    "stage": "verify / parser",
+    "symptom": "evaluation_completed=true，但 required tests 中有些名字在解析结果里找不到。",
+    "evidence": "历史审计发现 parser 漏报、测试提前停止、接口/依赖不匹配，以及标签不一致等不同原因。同一份原始日志重放修复后的 parser，有时补出的恰恰是失败结果。",
+    "action": "对照 required test IDs → 原始测试日志 → parser 输出 → reward。区分 PASS、FAIL、SKIP、missing 和同名冲突。修 parser 先重放相同日志，保存旧输出、新输出和版本，不修改原始成绩。",
+    "pitfall": "缺结果不能直接当 PASS，也不能一概归因于基础设施。进程 exit 0 证明不了完整测试覆盖。",
+    "source": "resources_servers/swebench_pro/verification.py",
+    "evidence_key": "D"
+  },
+  {
+    "id": "retry",
+    "title": "把三种“再试一次”分别记账",
+    "stage": "HTTP / verifier / episode",
+    "symptom": "日志里有几百次 retry，并不代表几百道题重新生成了答案。",
+    "evidence": "一份完整审计保留 731 个原始任务尝试，同时记录 403 次仅 verifier 的重试，复用已生成的 patch。另有恢复方案保留原始与恢复两种统计视图，不挑较高 reward。",
+    "action": "写清重试层次：传输重试是否重复远程操作；verifier 重试是否仍评分同一 patch；episode 重跑是否产生新答案与 attempt。提前固定恢复集合和纳入规则，保留失败和成功原件。",
+    "pitfall": "不要用重跑成功覆盖失败记录，或偷偷变成 best-of。改模型、prompt、runtime 或数据之后，应另开实验目录。",
+    "source": "nemo_gym/rollout_collection.py",
+    "evidence_key": "E"
+  },
+  {
+    "id": "lifetime",
+    "title": "文件交卷和留下服务，需要不同的生命周期",
+    "stage": "agent close / verify",
+    "symptom": "Agent 自测 HTTP 服务可用，结束后 grader 却连接被拒绝。",
+    "evidence": "历史任务记录显示服务自测发生在 agent 结束前，验证发生在结束后；源码和后续局部复现支持后台服务被收尾的机制。复现中清理已在 execute() 返回前发生，只挪 close() 不够。但没有每个历史 PID 的完整证据，不能宣称“不清理就一定能过”。",
+    "action": "先读任务契约：评分消费的是文件/patch，还是仍在运行的服务？明确服务归 task 还是归 agent，验证期间谁负责保活、最后谁回收。用跨 close 的最小探针复现，不仅看 agent 内自测。",
+    "pitfall": "SWE-Pro 导出 patch 前停止 agent 很合理；不能推断所有 benchmark 都该杀掉全部后台服务，也不能简单跳过 cleanup。",
+    "source": "environment_servers/single_agent_turn/app.py",
+    "evidence_key": "F"
+  },
+  {
+    "id": "usage",
+    "title": "unknown、0、重复累计，是三种不同情况",
+    "stage": "capture / usage",
+    "symptom": "任务得分正常，token 数却是 0、null，或刚好比模型返回值翻倍。",
+    "evidence": "历史 smoke 发现逐条 usage 与最后累计总量被重复相加，也有 reasoning tokens 漏计。另一份运行保留了 81 次成功调用的未知 usage，没有按 0 回填。",
+    "action": "对齐每个物理模型请求、provider usage 和 harness 汇总，先确认字段是增量还是累计值。列清主循环、摘要/压缩、delegate、重试和 judge 的统计边界；缺失保留 null，并报告观测覆盖率。",
+    "pitfall": "usage 数量对齐不等于 token IDs、logprobs 或训练轨迹完整。成功做完任务也不证明导出的训练数据没有缺轮次。",
+    "source": "nemo_gym/base_responses_api_model.py",
+    "evidence_key": "G"
+  },
+  {
+    "id": "fairness",
+    "title": "比较 harness 前，先比较实验条件",
+    "stage": "study / 对照实验",
+    "symptom": "同模型、同任务集，A 比 B 多通过几题；能直接说 A 更好吗？",
+    "evidence": "历史对比中的 CPU/内存约束、prompt、预算、运行时与中断经历并不完全一致。有的声明是调度预留，有的才是容器硬限制；这些比较测到的是整套运行配方。",
+    "action": "冻结 source、模型/采样、任务/镜像、prompt、时限与实际资源限制。报告两边共同评分的任务和缺失任务，保留原计划分母。单 repeat 不足以判断小分差的稳定性。",
+    "pitfall": "不要把“同一个模型名”当成完整控制变量，也不要把一次分差写成架构改动的因果收益。",
+    "source": "nemo_gym/sandbox/config.py",
+    "evidence_key": "H"
+  },
+  {
+    "id": "integrity",
+    "title": "原始 pass 和无参考答案暴露的 pass 分开说",
+    "stage": "任务隔离 / integrity",
+    "symptom": "verifier 给了 reward 1，但轨迹显示 agent 在完成任务前拿到了官方 solution 或隐藏测试内容。",
+    "evidence": "历史审计保留了确认参考答案暴露的原始通过记录，并单独标注；没有悄悄改 reward，也没有将其认证为独立解题通过。",
+    "action": "检查任务文件、挂载范围、网络可见资料和真实工具输出。记录看到什么、发生在实现前还是之后、审计覆盖哪些轨迹。提前定义 benchmark 的访问规则与报告口径。",
+    "pitfall": "只查本地目录没有答案不够；只审部分轨迹，也不能推断其余全部没有污染。",
+    "source": "resources_servers/swebench_pro/app.py",
+    "evidence_key": "I"
+  },
+  {
+    "id": "diagnosis",
+    "title": "没有新日志时，先找它在等什么",
+    "stage": "运行中 / 最终汇总",
+    "symptom": "一段时间没有输出；或者所有题都有记录了，最终汇总进程才失败。",
+    "evidence": "历史长任务存在缓冲输出和计算循环；另一次完整收集后，finalization 因内存不足失败。单独的 HTTP 410 / exit 143，也不足以证明 OOM 或 eviction。",
+    "action": "记录最后一个成功边界，区分生成、工具、测试、资源等待和写报告。看时间戳、进程/容器状态、退出原因与 artifacts 增长；大文件统计尽量逐行读取。先保留证据，再做有边界的恢复。",
+    "pitfall": "不要因页面安静就重启所有服务，也不要只看报错码猜原因。汇总失败不抹掉已完成题目；日志同步 finished 也不代表评估正确结束。",
+    "source": "nemo_gym/rollout_collection.py",
+    "evidence_key": "J"
+  }
+]

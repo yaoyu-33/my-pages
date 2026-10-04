@@ -1,7 +1,7 @@
 {
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "workstation_html_sha256": "44fa3ba4d45f3adb2802330ea3c679d2ab0b4ed52466f81c66f9c13ab52f3ebd",
-  "public_html_sha256": "33b242df494f0270cac500cd357cff40701d362ba098d47c25d811a672f864f4",
+  "public_source_html_sha256": "ce401c5822c9b6eddd9ab8aa330753900555b784532218d5d1b4c571f1df8649",
+  "public_html_sha256": "8990b45be0e85c910cf5827b21d350caed28e6c5dc1b8acf72006da98e480acc",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",
@@ -31,6 +31,7 @@
     "nemo_gym/rollout_collection.py": "99439202c2e411e84906399462f361d7b37871112e8a6ca9a9c8b69566f8668d",
     "nemo_gym/rollout_observability.py": "fb8be90a1256ceb461c2addec3f8340e48f0e1f64af72dd5ca82e35569079dac",
     "nemo_gym/sandbox/api.py": "5ecfe1797e0a9e6479828cd7804275a4d32bcae13e29340afb7c2fadafaced1c",
+    "nemo_gym/sandbox/config.py": "36a113ab9e6be02b5e46c8ec535cb6f761409ab6295d7dcdad48f13026de740a",
     "nemo_gym/sandbox/providers/base.py": "3bde691a0159c9e0459345f20f857d9644926e2b773c60d6d6ac33272089496e",
     "nemo_gym/sandbox/providers/opensandbox/configs/opensandbox.yaml": "9345aa731dd44faca8a75959db2f17fb45610389810ea52356a25878e18ab84e",
     "nemo_gym/server_utils.py": "92ffbbad19a6341393ac1373aa38ef020d1c62d057ad7e201856e6926adcf3d3",
@@ -59,15 +60,15 @@
     "responses_api_models/vllm_model/configs/vllm_model_for_training.yaml": "4f59482b08b9f2632aa2ec1fb3de28e4f9e2b5a289e2a665c446de12e203de8e",
     "tests/unit_tests/test_server_utils.py": "cd165576f7d5266b8f592a2e0e70e3ca147cf103bff6db5a0842a88e755f013a"
   },
-  "evidence_sha256": "6413b0f85f10aee8cdb8db35a10b0656ad4f50777f92871791c6329678d32cef",
+  "public_evidence_sha256": "d7dc145dc2a406438c5ee6d9617fcd499c8f0cd162e8096c4a3052b729a0fe75",
   "http_evidence_sha256": "7bf3f4117fac83f7886484313459d51eb692a2a3014d43f532e20bc84ae89e6a",
   "app_reading_steps": 15,
   "command_steps": 8,
+  "study_cases": 10,
   "command_bundle_sha256": "55731113b6d1e6536d92dadd6b03b6b4cfb682dd6c33257e747db96b8510da87",
   "navigation_replacements": {
-    "href=\"/\"": 3,
-    "href=\"/architecture/\"": 1,
-    "href=\"/harness-handoff/\"": 2
+    "href=\"/\"": 3
   },
-  "content_changes": "None; only homepage and companion-page href targets changed."
+  "content_changes": "Private artifact locations and internal reference URLs omitted from public inputs; see tutorial-source/public-redactions.json. Export only changes three homepage hrefs.",
+  "history_scope": "Current branch content only; older public commits are not rewritten."
 }
