@@ -39,8 +39,9 @@ def main() -> None:
     p.add_argument('root', type=Path)
     args = p.parse_args()
     paths = [args.root/'README.md', args.root/'index.html']
-    paths += list((args.root/'tutorial-source').glob('*'))
-    paths += list((args.root/'gym-design-tutorial').glob('*'))
+    for folder in ['tutorial-source', 'tutorial-source-en']:
+        paths += list((args.root/folder).glob('*'))
+    paths += list((args.root/'gym-design-tutorial').rglob('*'))
     failures = []
     count = 0
     for path in paths:

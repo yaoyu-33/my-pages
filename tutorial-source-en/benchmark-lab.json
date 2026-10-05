@@ -1,0 +1,114 @@
+[
+  {
+    "id": "checkout",
+    "title": "Prepare a pinned Gym checkout",
+    "label": "Terminal A · One-time setup",
+    "text": "Start by installing the Python environment and Gym CLI. A fresh checkout at this tutorial's revision makes the source easy to compare line by line. Skip installation if you already have that revision set up. The shell snippets use Bash; enter bash in your terminal first.",
+    "command": "git clone https://github.com/NVIDIA-NeMo/Gym.git Gym-tutorial\ncd Gym-tutorial\ngit checkout --detach 3ef478df1ee163134d32a3f291f0a9e5981d0e52\nuv venv --python 3.13.14\nuv sync --extra dev --extra sandbox\nsource .venv/bin/activate\ngym env start --help\ngym eval run --help",
+    "expect": "You can see CLI help. This environment holds the Gym control program; components prepare their own .venv at startup. These steps assume Git, uv, Bash, and curl are already installed.",
+    "source": [
+      "pyproject.toml",
+      539,
+      549
+    ],
+    "code_note": "This registration connects the gym command to Python main(). Installation does not start services, and viewing help sends no model requests."
+  },
+  {
+    "id": "connections",
+    "title": "Prepare the files and two external connections",
+    "label": "Terminal A · Gym repository root",
+    "text": "Download the configuration bundle and extract it into the Gym-tutorial root to create tutorial-lab/. You also need a working model inference endpoint and an OpenSandbox service. GYM_HOST must be an IP assigned to the Gym machine and reachable from the sandbox. Do not use 0.0.0.0 or the container's own localhost.",
+    "command": "# Extract the downloaded gym-benchmark-lab.zip into this directory\nunzip /path/to/gym-benchmark-lab.zip\n\n# Replace angle-bracket placeholders with your actual values\nexport GYM_HOST='<reachable IP of the Gym machine>'\nexport POLICY_BASE_URL='https://<model endpoint>/v1'\nexport POLICY_MODEL_NAME='<model ID served by the endpoint>'\nexport OPENSANDBOX_DOMAIN='https://<OpenSandbox endpoint>'\nread -rsp 'Model API key: ' POLICY_API_KEY; echo\nexport POLICY_API_KEY\nread -rsp 'OpenSandbox API key: ' OPENSANDBOX_API_KEY; echo\nexport OPENSANDBOX_API_KEY",
+    "expect": "tutorial-lab/ contains lab.yaml, native-hermes.yaml, model-provider.yaml, and the conversion script. Keys stay in your terminal environment variables. The bundle contains no real addresses or credentials.",
+    "source": [
+      "responses_api_models/openai_model/configs/openai_model.yaml",
+      1,
+      9
+    ],
+    "code_note": "policy_model is Gym's model proxy instance. openai_base_url points to the actual inference service. gym env start starts the proxy; the external service loads model weights and runs GPU inference."
+  },
+  {
+    "id": "data",
+    "title": "Prepare SWE-Pro data and convert one native task",
+    "label": "Terminal A · Start with 1 task × 1 sample",
+    "text": "prepare.py uses pinned data and evaluator revisions to create JSONL with image digests, test scripts, and grading metadata. Skip this step if you already have prepared data at the same revisions. The first run downloads data and looks up image information. Then use the tutorial helper to create the Collector's native input.",
+    "command": "python benchmarks/swebench/pro/prepare.py\n\npython tutorial-lab/prepare-tutorial-tasks.py \\\n  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \\\n  results/tutorial-001 --limit 1\n\npython -m json.tool results/tutorial-001/routing.yaml",
+    "expect": "The script creates tasks.jsonl for tasks and routing.yaml for taskset → Environment routing. Each new directory gets its own taskset; the script refuses to overwrite an existing directory. tasks.jsonl does not yet contain episode_id. The Collector adds it when sending the request.",
+    "source": [
+      "nemo_gym/rollout_collection.py",
+      280,
+      292
+    ],
+    "code_note": "The Collector uses task_id.taskset to look up environment_server_routes. In taskset mode, a flat row causes an error. It does not silently switch entry points."
+  },
+  {
+    "id": "resolve",
+    "title": "Inspect the merged configuration before starting",
+    "label": "Terminal A · Configuration parsing only",
+    "text": "lab.yaml combines the component configurations. routing.yaml selects the Environment for the input. resolve validates the configuration and fills defaults, helping catch missing parameters or wrong instance names before startup.",
+    "command": "gym env resolve \\\n  --config tutorial-lab/lab.yaml \\\n  --config results/tutorial-001/routing.yaml \\\n  > results/tutorial-001/resolved.yaml\n\n# Inspect instances, implementations, connections, and routing\nless results/tutorial-001/resolved.yaml",
+    "expect": "Look for four service instances: single_agent_turn, hermes_agent, swebench_pro_resources_server, and policy_model, plus the sandbox provider. The Environment implementation should be single_agent_turn and Hermes toolsets should be [terminal]. The route must point to the same Environment instance.",
+    "source": [
+      "nemo_gym/cli/env.py",
+      1365,
+      1385
+    ],
+    "code_note": "dump_config() calls the configuration parser with hide_secrets enabled. Successful parsing only confirms the structure. Startup and execution still need to verify port binding, networking, authentication, and generation."
+  },
+  {
+    "id": "start",
+    "title": "Start Gym and keep this terminal running",
+    "label": "Terminal A · Run in the foreground",
+    "text": "We separate startup from task execution to make their roles clear. env start manages Head and the service subprocesses, then waits for readiness. It has not submitted any benchmark tasks yet.",
+    "command": "gym env start --config tutorial-lab/lab.yaml",
+    "expect": "The first startup may install component dependencies. Logs show the service addresses. Head uses 127.0.0.1:11000 on this machine; components listen on ports at GYM_HOST. If another Gym instance uses port 11000, choose an unused runtime environment. Do not stop someone else's process.",
+    "source": [
+      "nemo_gym/cli/env.py",
+      496,
+      512
+    ],
+    "code_note": "The parent process starts components and passes global configuration plus the current instance name to each subprocess. Components eventually call run_webserver(), register FastAPI routes, and let Uvicorn listen for requests."
+  },
+  {
+    "id": "collect",
+    "title": "Open another terminal, check readiness, and submit one task",
+    "label": "Terminal B · Same machine and Gym directory",
+    "text": "Leave Terminal A running. In Terminal B, enter the same repository and activate the same .venv. Set the environment variables from step 2 again; a new shell does not inherit them automatically. Confirm that /readyz returns 200 with status=ok before running eval run.",
+    "command": "cd /path/to/Gym-tutorial\nsource .venv/bin/activate\n# Repeat the export / read commands from step 2 before continuing\n\ngym env status\ncurl --fail --silent --show-error http://127.0.0.1:11000/readyz\n\n# Run only after readyz succeeds; use output files for this new run\ngym eval run --no-serve \\\n  --config tutorial-lab/lab.yaml \\\n  --config results/tutorial-001/routing.yaml \\\n  --input results/tutorial-001/tasks.jsonl \\\n  --output results/tutorial-001/rollouts.jsonl \\\n  --limit 1 --num-repeats 1 --concurrency 1",
+    "expect": "The Collector gets live service addresses from Head and sends a typed /run request using routing.yaml. Environment coordinates seed → Hermes model/tool loop → close → verify → cleanup. Results are written as tasks finish.",
+    "source": [
+      "nemo_gym/rollout_collection.py",
+      3424,
+      3432
+    ],
+    "code_note": "These lines send the HTTP request. _native_episode_request_body(row) adds episode_id and places the task under task. url_path=\"/run\" targets the selected Environment."
+  },
+  {
+    "id": "results",
+    "title": "Read the results, then summarize by task",
+    "label": "Terminal B · After collection ends",
+    "text": "Read the raw rows before the average score. The Collector unpacks the HTTP result into top-level rollout fields, so rollouts.jsonl uses r[\"reward\"]. A direct curl call in Chapter 13 receives the response envelope and uses body[\"result\"][\"reward\"] instead.",
+    "command": "python - <<'CHECK'\nimport json\nfrom pathlib import Path\np = Path('results/tutorial-001')\nfor line in (p / 'rollouts.jsonl').read_text().splitlines():\n    r = json.loads(line)\n    print({k: r.get(k) for k in (\n        '_ng_task_index', '_ng_rollout_index', 'reward',\n        'evaluation_completed', 'mask_sample', 'failure_reason')})\n    print('agent status:', (r.get('response') or {}).get('status'))\nfailures = p / 'rollouts_failures.jsonl'\nprint('failure rows:', len(failures.read_text().splitlines())\n      if failures.exists() else 0)\nCHECK\n\ngym eval profile \\\n  --inputs results/tutorial-001/rollouts_materialized_inputs.jsonl \\\n  --rollouts results/tutorial-001/rollouts.jsonl",
+    "expect": "The command creates reward_profiling, agent_metrics, and repeat_level_metrics files. One sample helps you follow the flow. It cannot show how much results vary or establish overall benchmark performance. profile requires complete matching inputs and outputs by default. If any are missing, check failures and logs first.",
+    "source": [
+      "nemo_gym/rollout_collection.py",
+      364,
+      378
+    ],
+    "code_note": "A successful result becomes top-level fields with _ng_task_id added. Structured failures go into failure records. For SWE-Pro, also check evaluation_completed, failure reasons, and agent completion so an unfinished evaluation is not mistaken for a wrong answer."
+  },
+  {
+    "id": "finish",
+    "title": "Scale up after checking concurrency, then clean up",
+    "label": "Use a new directory for a new run; stop in Terminal A",
+    "text": "Once one task works and you have inspected its trace, increase the task count. The command below prepares only the first 10 tasks. Then replace tutorial-001 with tutorial-010 in steps 6 and 7. In the conversion script, --limit 0 selects all prepared tasks.",
+    "command": "# A separate run: new taskset and result directory\npython tutorial-lab/prepare-tutorial-tasks.py \\\n  benchmarks/swebench/data/swebench_pro_benchmark.jsonl \\\n  results/tutorial-010 --limit 10\n\n# Reuse the eval command from step 6 with these changes:\n# Paths: tutorial-001 → tutorial-010\n# --limit 10 --num-repeats 1 --concurrency 1\n\n# Once all collection and reporting finish, press Ctrl-C in Terminal A\n# In Terminal B, confirm that this run's services have stopped:\ngym env status",
+    "expect": "Environment and Resources clean up sandboxes for normal requests. Ctrl-C exits the parent and cleans up this run's subprocesses. After an abnormal interruption, also check this run's provider resources and TTL. A closed terminal does not prove that remote containers are gone.",
+    "source": [
+      "nemo_gym/cli/env.py",
+      700,
+      721
+    ],
+    "code_note": "RunHelper.shutdown() cleans up the process handles it retained. Do not use killall/python or stop a shared inference service to end a tutorial run."
+  }
+]

@@ -1,0 +1,81 @@
+[
+  {
+    "id": "config",
+    "prompt": "The same key is set in four places. Which value wins?",
+    "options": [
+      "2, because the base configuration defines it first",
+      "3, because the last CLI override wins",
+      "4, because the recipe outranks the terminal"
+    ],
+    "answer": 1,
+    "feedback": "The final value is 3. Without the CLI override, env.yaml supplies 1. Check the actual merge order, not just the file you last edited.",
+    "anchor": "config-precedence"
+  },
+  {
+    "id": "tool",
+    "prompt": "The model returns a get_weather function_call. Has the weather function run yet?",
+    "options": [
+      "Yes. The tool name is already a function call.",
+      "No. The Agent must dispatch the request before Resources runs it."
+    ],
+    "answer": 1,
+    "feedback": "function_call is a structured request for an action. SimpleAgent decodes arguments and sends a POST request. Only then does the Resources handler run. call_id links the returned observation to that request.",
+    "anchor": "weather-wire"
+  },
+  {
+    "id": "http",
+    "prompt": "POST /get_weather receives {} with no city. Where does it stop?",
+    "options": [
+      "Input validation: 422, before the weather handler runs",
+      "Inside the weather handler: 500",
+      "It returns the cold-weather response as usual: 200"
+    ],
+    "answer": 0,
+    "feedback": "Once the path and method match, GetWeatherRequest requires city. Validation rejects the missing field. Changing the method to GET would instead produce 405 at the routing stage.",
+    "anchor": "diagram-http-trip"
+  },
+  {
+    "id": "task",
+    "prompt": "You call ta=create_task(a()) and tb=create_task(b()), then await ta and await tb. Do those two awaits make the work sequential?",
+    "options": [
+      "Yes. await always starts work one item at a time.",
+      "No. Both Tasks are already scheduled, so nonblocking waits can overlap."
+    ],
+    "answer": 1,
+    "feedback": "Creating a coroutine object and scheduling a Task are different steps. Calling and awaiting each new coroutine in turn is sequential. Tasks scheduled in advance do not become sequential just because you await their results in order.",
+    "anchor": "async-mini-lab"
+  },
+  {
+    "id": "provider",
+    "prompt": "Does the AsyncSandbox interface guarantee an isolated container?",
+    "options": [
+      "Yes. The name sandbox guarantees isolation.",
+      "No. Check what the selected provider supports."
+    ],
+    "answer": 1,
+    "feedback": "Docker, OpenSandbox, and local backends have different capabilities. LocalProvider runs commands on the host without container isolation. This tutorial's SWE-Pro recipe uses a container backend.",
+    "anchor": "design"
+  },
+  {
+    "id": "retry",
+    "prompt": "The response from Environment /run is lost. If you resend the same ID, is duplicate execution impossible?",
+    "options": [
+      "No. Session-level activation deduplication does not cover the whole /run call.",
+      "Yes. EpisodeId is a persistent global lock."
+    ],
+    "answer": 0,
+    "feedback": "Hermes state.task belongs to a live Agent session. This ID does not automatically give Environment /run persistent deduplication. Check the original execution and saved records before deciding on a recovery attempt.",
+    "anchor": "lifecycle"
+  },
+  {
+    "id": "result",
+    "prompt": "A historical case has reward=1 and 18 required tests passing, but agent status=incomplete. What should the report say?",
+    "options": [
+      "The whole system succeeded completely.",
+      "The tests passed; also report the incomplete agent and the summary 422."
+    ],
+    "answer": 1,
+    "feedback": "Scoring, agent completion, and infrastructure status are separate outcomes. Evidence from this task cannot prove that every task, the current version, or a new configuration works.",
+    "anchor": "real"
+  }
+]

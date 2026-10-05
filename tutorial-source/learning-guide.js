@@ -8,7 +8,7 @@
    for(const peer of box.querySelectorAll('[data-choice]'))peer.setAttribute('aria-pressed',String(peer===button));
    const correct=Number(button.dataset.choice)===item.answer;
    out.replaceChildren();out.hidden=false;out.dataset.correct=String(correct);
-   const title=document.createElement('strong');title.textContent=correct?'答对啦，看看为什么 🌱':'再对照一下这个边界';
+   const title=document.createElement('strong');title.textContent=correct?'答对啦，看看为什么 🌱':'再看看这里的区别';
    const text=document.createElement('span');text.textContent=item.feedback;
    const link=document.createElement('a');link.href='#'+item.anchor;link.textContent='回到相关例子 →';
    link.addEventListener('click',()=>{const target=document.getElementById(item.anchor);for(let p=target;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});

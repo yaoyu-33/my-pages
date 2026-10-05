@@ -2,3 +2,6 @@ tutorial-source/index.html
 tutorial-source/source-manifest.json
 __pycache__/
 tutorial-source/gym-benchmark-lab.zip
+tutorial-source-en/index.html
+tutorial-source-en/source-manifest.json
+tutorial-source-en/gym-benchmark-lab.zip

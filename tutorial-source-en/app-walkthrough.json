@@ -1,0 +1,332 @@
+[
+  {
+    "id": "resources",
+    "label": "01 · Resources: weather",
+    "description": "Read a complete small service, from input types and handlers to listening on a port.",
+    "steps": [
+      {
+        "title": "Configuration and requests have different jobs",
+        "file": "resources_servers/example_single_tool_call/app.py",
+        "start": 29,
+        "end": 39,
+        "focus": [
+          29,
+          30,
+          33,
+          34,
+          37,
+          39
+        ],
+        "explain": [
+          "Config holds settings read when the service starts. This class only contains pass, so it adds no new fields. Its parent class defines host, port, entrypoint, and name.",
+          "GetWeatherRequest describes the JSON body for each HTTP request. city: str tells FastAPI / Pydantic to require a string field named city. GetWeatherResponse describes the response data."
+        ],
+        "mental": "Configuration sets up the service. The request body says what this caller wants.",
+        "question": "If city is missing, does get_weather run before the error?",
+        "answer": "No. For HTTP requests, FastAPI validates the body first. A missing city produces 422 without running the handler. Type annotations alone do not automatically validate an ordinary Python function call at runtime."
+      },
+      {
+        "title": "Start with the handler: input → return value",
+        "file": "resources_servers/example_single_tool_call/app.py",
+        "start": 61,
+        "end": 62,
+        "focus": [
+          61,
+          62
+        ],
+        "explain": [
+          "self is the current service object. body is already a validated GetWeatherRequest, so the handler can use body.city. The HTTP layer serializes the returned Pydantic object as JSON.",
+          "This function always returns cold; it does not query a weather website. It has no slow I/O and no await. async def makes it an async handler, but does not make CPU work run in parallel."
+        ],
+        "mental": "Set networking aside for a moment: this function takes a city and returns an observation.",
+        "question": "Can external callers POST /get_weather as soon as this function exists?",
+        "answer": "Not yet. You also need to register a route and start an HTTP server listening on a port."
+      },
+      {
+        "title": "Register the POST route",
+        "file": "resources_servers/example_single_tool_call/app.py",
+        "start": 50,
+        "end": 59,
+        "focus": [
+          50,
+          52,
+          55,
+          57,
+          59
+        ],
+        "explain": [
+          "The server is a Python object with config and server_client. app is a FastAPI application that holds HTTP routes and middleware. They are different objects.",
+          "super().setup_webserver() returns the shared Resources app. app.post(\"/get_weather\")(self.get_weather) then registers this instance’s handler in the route table. Registration does not execute get_weather.",
+          "This uses the same mechanism as decorating a function with @app.post(\"/get_weather\"). The first call chooses the route. The second registers self.get_weather, a method already bound to self."
+        ],
+        "mental": "The handler does the work. The route tells the app which handler to call.",
+        "question": "What happens if you replace super().setup_webserver() with FastAPI()?",
+        "answer": "You get a new, empty app. You lose the parent’s /verify and session routes, plus its middleware. Keep the parent’s app unless you intend to rebuild those features yourself."
+      },
+      {
+        "title": "Follow super: scoring routes are registered here",
+        "file": "nemo_gym/base_resources_server.py",
+        "start": 235,
+        "end": 258,
+        "focus": [
+          239,
+          240,
+          242,
+          245,
+          246,
+          248,
+          250,
+          253,
+          256,
+          258
+        ],
+        "explain": [
+          "The weather app.py does not call app.post(\"/verify\") because SimpleResourcesServer registers that route. It also registers routes for sessions, aggregate metrics, and rescoring queries.",
+          "Python’s method resolution order makes self.verify resolve to SimpleWeatherVerifier.verify. The shared trace and judge_failsafe wrappers add observability and handle scoring failures.",
+          "When an important method is inherited, follow the base class once. Many routes that seem missing from app.py are registered there."
+        ],
+        "mental": "The subclass supplies behavior. The base class connects it to a shared HTTP interface.",
+        "question": "Why can SimpleWeatherVerifier avoid inheriting an HTTP server class?",
+        "answer": "Scoring logic can be written and tested separately. Multiple inheritance lets the service class combine that logic with Resources HTTP support in one object."
+      },
+      {
+        "title": "Read verify: what does reward measure?",
+        "file": "resources_servers/example_single_tool_call/app.py",
+        "start": 42,
+        "end": 47,
+        "focus": [
+          43,
+          45,
+          47
+        ],
+        "explain": [
+          "body.response.output is the agent’s structured output trajectory. any(...) only checks for a function_call named get_weather. float(True) is 1.0; float(False) is 0.0.",
+          "body.model_dump() preserves the existing input and response fields. The function adds reward to build a BaseVerifyResponse. It does not call the weather tool again.",
+          "This teaching verifier does not prove the city was correct, the tool ran successfully, or the final answer was good. Read the scoring condition to understand what reward=1 really establishes."
+        ],
+        "mental": "The tool produces observations. The verifier defines what counts as completion.",
+        "question": "Does a weather description with no function_call earn a score of 1?",
+        "answer": "No. The repository’s text without weather call test case returns 0. The real HTTP records below confirm the same behavior."
+      },
+      {
+        "title": "Test the verifier without starting a server",
+        "file": "resources_servers/example_single_tool_call/app.py",
+        "start": 65,
+        "end": 69,
+        "focus": [
+          65,
+          66,
+          67,
+          68
+        ],
+        "explain": [
+          "VERIFIER_FIXTURE defines how to create the verifier, which request model validates its input, and where to read the JSONL test cases. It does not define another HTTP route.",
+          "Repository tests use exercise_verifier_fixture to check these cases. This tutorial also started a real HTTP server and sent the same cases to /verify. That checks the routes, validation, and scoring together."
+        ],
+        "mental": "Direct function tests and HTTP tests answer different questions. Both are useful.",
+        "question": "Why does the fixture use SimpleWeatherVerifier as server_factory?",
+        "answer": "These cases need only the scoring logic. They do not need a listening port, Head, or a model. HTTP behavior needs separate checks."
+      },
+      {
+        "title": "At the end of the file: delegate startup to shared code",
+        "file": "resources_servers/example_single_tool_call/app.py",
+        "start": 72,
+        "end": 73,
+        "focus": [
+          72,
+          73
+        ],
+        "explain": [
+          "When you run app.py directly, __name__ is \"__main__\", so it calls the inherited run_webserver. This is a classmethod: the class exists first, and shared startup code creates its instance.",
+          "There is no hand-written uvicorn.run or global app = FastAPI(). This pattern relies on Gym’s runtime configuration. Running python app.py on its own does not tell it which configured instance to use."
+        ],
+        "mental": "app.py identifies the service class. Shared startup code turns it into a server process.",
+        "question": "Do these lines start a listener when you import the module?",
+        "answer": "No. A normal import does not enter the __main__ branch. The exercise launcher on this page explicitly calls the class’s run_webserver."
+      },
+      {
+        "title": "Start the service: read config and create the object and app",
+        "file": "nemo_gym/server_utils.py",
+        "start": 1332,
+        "end": 1357,
+        "focus": [
+          1333,
+          1337,
+          1341,
+          1345,
+          1355,
+          1357
+        ],
+        "explain": [
+          "global_config_dict holds the complete run configuration. load_config_from_global_config uses NEMO_GYM_CONFIG_PATH to select this instance’s settings, then validates them with the class’s declared config type.",
+          "Next, the code creates a ServerClient and calls cls(config=..., server_client=...). Here cls is SimpleWeatherResourcesServer. Calling server.setup_webserver() therefore returns to the weather implementation we just read.",
+          "Later code adds health checks, error handling, cancellation, and observability. Finally, it calls uvicorn.run with the configured host and port. Other processes can use HTTP only after the server starts listening."
+        ],
+        "mental": "Read config → create the service → register routes → add shared support → let Uvicorn listen.",
+        "question": "Does setup_webserver() itself open a network port?",
+        "answer": "No. It returns a FastAPI (ASGI) app. Uvicorn receives TCP / HTTP requests. The process diagram below shows these as separate stages."
+      }
+    ]
+  },
+  {
+    "id": "model",
+    "label": "02 · Model: request proxy",
+    "description": "Use the same structure to read a service that calls a model for other components. This is a code walkthrough, with no model requests.",
+    "steps": [
+      {
+        "title": "Model configuration: where to connect and how many requests to allow",
+        "file": "responses_api_models/openai_model/app.py",
+        "start": 36,
+        "end": 52,
+        "focus": [
+          37,
+          38,
+          39,
+          43,
+          45
+        ],
+        "explain": [
+          "These are startup settings: the upstream base URL, authentication, and actual model ID. They are separate from a user’s prompt.",
+          "max_concurrent_requests limits concurrency in this Model Server process. None means no limit. It is not the GPU batch size or a shared quota for all cluster workers."
+        ],
+        "mental": "The configured endpoint points to the upstream service that runs inference.",
+        "question": "Does changing this field give the upstream service more GPUs?",
+        "answer": "No. It only changes how many requests this process allows through. Upstream deployment still determines inference capacity."
+      },
+      {
+        "title": "Create a reusable client during initialization",
+        "file": "responses_api_models/openai_model/app.py",
+        "start": 65,
+        "end": 82,
+        "focus": [
+          65,
+          67,
+          69,
+          70,
+          76,
+          77,
+          82
+        ],
+        "explain": [
+          "model_post_init is a hook called after Pydantic creates the object. It creates a reusable NeMoGymAsyncOpenAI client and a semaphore. Later requests share them.",
+          "Creating the client does not generate an answer. The actual request happens at await inside responses. NeMoGymAsyncOpenAI uses Gym’s transport layer; do not assume each request creates a new HTTP client."
+        ],
+        "mental": "Prepare the client at startup. Use it when a request arrives.",
+        "question": "Why not create _client inside responses on every call?",
+        "answer": "That would repeat initialization and prevent connection reuse. Keeping process-level dependencies on the service instance makes their lifetime clear."
+      },
+      {
+        "title": "One model request: wait for a slot, then for a reply",
+        "file": "responses_api_models/openai_model/app.py",
+        "start": 84,
+        "end": 95,
+        "focus": [
+          85,
+          86,
+          93,
+          94,
+          95
+        ],
+        "explain": [
+          "First, convert the request to a dictionary, merge extra_body, and replace model with the actual model ID from deployment configuration. An optional branch also filters out reasoning input items.",
+          "async with self._semaphore acquires a concurrency slot and releases it on exit. await self._client.create_response(...) waits for the upstream HTTP response. Other tasks can run on the event loop while it waits.",
+          "Finally, validate the upstream dictionary as a NeMoGymResponse. This proxy process mainly handles protocol conversion and I/O. The model weights usually live in the upstream inference service."
+        ],
+        "mental": "There are two possible waits: a local concurrency slot and the upstream inference response.",
+        "question": "Does async with mean this request avoids queuing?",
+        "answer": "No. Acquiring the semaphore can itself require a wait. It limits requests in flight; it cannot remove the upstream queue."
+      },
+      {
+        "title": "No routes in the Model app.py? Follow the base class",
+        "file": "nemo_gym/base_responses_api_model.py",
+        "start": 250,
+        "end": 269,
+        "focus": [
+          251,
+          257,
+          258,
+          265,
+          266
+        ],
+        "explain": [
+          "SimpleResponsesAPIModel registers /v1/chat/completions, /v1/responses, and /v1/messages. Requests enter responses_dispatch. Shared code handles the protocol before calling the concrete implementation.",
+          "An absent app.post in the subclass does not mean there is no HTTP interface. Check its base class. Also keep the Model’s /v1/responses separate from the Agent endpoint with the same name."
+        ],
+        "mental": "The same path can exist on different services and do different work.",
+        "question": "Does the Agent’s /v1/responses also call the model only once?",
+        "answer": "Not necessarily. The Agent can run many model and tool turns internally. Read the next app.py to see how."
+      }
+    ]
+  },
+  {
+    "id": "agent",
+    "label": "03 · Agent: tool runner",
+    "description": "Follow a few key calls to see how one service contacts two others. This is not a new agent run.",
+    "steps": [
+      {
+        "title": "Reference two services: Model and Resources",
+        "file": "responses_api_agents/simple_agent/app.py",
+        "start": 62,
+        "end": 65,
+        "focus": [
+          63,
+          64,
+          65
+        ],
+        "explain": [
+          "resources_server and model_server are typed service references. Their name fields match instance names in YAML. They are not Python service objects passed directly into the Agent.",
+          "Changing a reference can swap the backend, but tool names, protocols, and scoring must still agree. max_steps limits loop turns, not the timeout for one HTTP request."
+        ],
+        "mental": "The Agent is a service and also a client of other services.",
+        "question": "Does server_client.post call another Python object directly?",
+        "answer": "No. ServerClient looks up the target address in the configuration, serializes the request, and sends async HTTP."
+      },
+      {
+        "title": "Request a model response and check it",
+        "file": "responses_api_agents/simple_agent/app.py",
+        "start": 116,
+        "end": 129,
+        "focus": [
+          116,
+          117,
+          118,
+          119,
+          120,
+          123,
+          124,
+          127
+        ],
+        "explain": [
+          "ServerClient uses config.model_server.name and model_url_path to find the target instance and route. new_body contains this turn’s context. Cookies carry session information along with it.",
+          "After await returns an HTTP response, the code still checks the status, reads JSON, and validates it as NeMoGymResponse. Receiving a response object does not prove it contains a valid model result."
+        ],
+        "mental": "A network response, a successful HTTP status, and valid data are three separate checks.",
+        "question": "Why not hard-code the URL inside the loop?",
+        "answer": "Configuration manages service references, so the Agent can connect to different model services. The loop can focus on running the task."
+      },
+      {
+        "title": "Turn a tool call into an actual request",
+        "file": "responses_api_agents/simple_agent/app.py",
+        "start": 214,
+        "end": 225,
+        "focus": [
+          216,
+          217,
+          218,
+          219,
+          220,
+          222,
+          223
+        ],
+        "explain": [
+          "The model output supplies a tool name and JSON arguments. After parsing them, the Agent builds a path such as /get_weather from the tool name and sends the arguments to Resources.",
+          "await api_response.content.read() reads the tool observation. The loop then wraps it in a function_call_output with the same call_id and adds it to the model’s context.",
+          "Resources errors can be returned to the model as tool output here. The earlier model request instead uses raise_for_status. The loop therefore handles these two kinds of failure differently."
+        ],
+        "mental": "The model proposes an action, the Agent sends the request, and Resources performs it.",
+        "question": "Is declaring get_humidity in the tools JSON enough?",
+        "answer": "No. Resources also needs a matching route and implementation. Otherwise, the model can request the tool, but the actual HTTP request returns 404."
+      }
+    ]
+  }
+]

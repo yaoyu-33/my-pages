@@ -36,7 +36,7 @@
   },
   {
     "id": "task",
-    "prompt": "先 ta=create_task(a())、tb=create_task(b())，再 await ta、await tb，会因两行 await 而串行吗？",
+    "prompt": "先用 ta=create_task(a())、tb=create_task(b()) 调度，再写 await ta、await tb。这两行 await 会让任务变成串行吗？",
     "options": [
       "会，await 永远只能逐个开始",
       "不会；两项工作已经调度，非阻塞等待可以交错"
@@ -60,7 +60,7 @@
     "id": "retry",
     "prompt": "整个 Environment /run 的响应丢了，原 ID 再发一次能保证绝不重复执行吗？",
     "options": [
-      "不能；session 内 activation 去重不覆盖整个 /run",
+      "不能；session 内的 activation 去重不适用于整个 /run",
       "能，EpisodeId 是一个全局持久锁"
     ],
     "answer": 0,
@@ -75,7 +75,7 @@
       "测试判定通过，同时保留 agent 未完成及 summary 422 的事实"
     ],
     "answer": 1,
-    "feedback": "判分、agent 完成状态与基础设施状态是不同维度。这一题的证据不能证明所有题、当前版本或新配置都正常。",
+    "feedback": "判分结果、agent 完成状态和基础设施状态，需要分别判断。这一题的证据不能证明所有题、当前版本或新配置都正常。",
     "anchor": "real"
   }
 ]

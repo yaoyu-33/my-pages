@@ -1,0 +1,112 @@
+[
+  {
+    "id": "protocol",
+    "title": "A ready service still needs a second-turn check",
+    "stage": "Startup / model protocol",
+    "symptom": "The first model call returns HTTP 200, and the tool runs. Sending the tool result back to the model produces 422 on the second call.",
+    "evidence": "In a historical smoke test across several harnesses, the receiving schema rejected a reasoning field in the second-turn assistant message. The outer API could still return HTTP 200 with reward 0. Looking only at that outer status would hide the problem.",
+    "action": "A smoke test should cover model → tool → tool result → model → verifier. Record which component failed, its original status, and its response body. For streaming calls, also check the terminal event: response.failed can appear after HTTP 200.",
+    "pitfall": "A health check, model listing, or simple question and answer does not prove that the multi-turn tool protocol works.",
+    "source": "nemo_gym/base_responses_api_model.py",
+    "evidence_key": "A"
+  },
+  {
+    "id": "runtime",
+    "title": "Prove installation works inside the actual task image",
+    "stage": "Seed / runtime",
+    "symptom": "A CLI works on the control machine, but some task containers fail before the first model call.",
+    "evidence": "Historical runs found Python-version, libc, and dependency problems in selected images. Another smoke test found that a CLI had upgraded itself, so two execution paths used different versions.",
+    "action": "Check the image digest, architecture, Python or Node version, glibc or musl, certificates, permissions, and basic commands. Pin the harness and verify the installed version. Test different image families and save installation stdout and stderr. Give the harness its own runtime while preserving the task environment.",
+    "pitfall": "Replacing the whole task image or upgrading its system Python can hide a compatibility problem while changing the benchmark.",
+    "source": "responses_api_agents/hermes_agent/app.py",
+    "evidence_key": "B"
+  },
+  {
+    "id": "coverage",
+    "title": "Count the denominator before reading the percentage",
+    "stage": "Collection / reporting",
+    "symptom": "The dashboard shows 52.30%, while the full-task report shows 43.64%. Both can come from the same results.",
+    "evidence": "One historical record had 731 tasks, 610 main-result rows, and 121 failure records. 319/610=52.30% is the pass rate among main results. 319/731=43.64% is the confirmed-pass rate over all planned tasks. Unscored tasks remain unscored.",
+    "action": "Report the task counts: planned tasks, tasks with returned results, scored tasks, tasks with completed agents, and confirmed passes. Also report required-test coverage. Show both the rate over all planned tasks and the rate among scored tasks. List what is missing.",
+    "pitfall": "Do not turn failure records into an “original reward=0” or report only the higher conditional score. A finished runner, a completed agent, and a passing task are different outcomes.",
+    "source": "nemo_gym/reward_profile.py",
+    "evidence_key": "C"
+  },
+  {
+    "id": "verifier",
+    "title": "A finished test command does not prove every required test has a result",
+    "stage": "Verify / parser",
+    "symptom": "evaluation_completed=true, but some required test names are missing from the parsed results.",
+    "evidence": "Historical audits found several causes: parser omissions, early test termination, API or dependency mismatches, and inconsistent labels. Replaying the same raw logs through a corrected parser sometimes recovered failing results.",
+    "action": "Compare required test IDs → raw test logs → parser output → reward. Distinguish PASS, FAIL, SKIP, missing results, and duplicate names. When fixing a parser, replay the same logs first. Save old and new outputs with their versions; preserve the original scores.",
+    "pitfall": "A missing result is not a PASS, and it is not always an infrastructure failure. Exit code 0 does not prove full test coverage.",
+    "source": "resources_servers/swebench_pro/verification.py",
+    "evidence_key": "D"
+  },
+  {
+    "id": "retry",
+    "title": "Track three kinds of retry separately",
+    "stage": "HTTP / verifier / episode",
+    "symptom": "Hundreds of retries in the logs do not necessarily mean hundreds of tasks generated new answers.",
+    "evidence": "One complete audit preserved 731 original task attempts and recorded 403 verifier-only retries that reused existing patches. Another recovery plan kept separate original and recovered views without choosing the higher reward.",
+    "action": "State the retry layer. Can a transport retry repeat a remote action? Does a verifier retry score the same patch? Does an episode rerun create a new answer and attempt? Define the recovery set and inclusion rules in advance. Keep both failed and successful originals.",
+    "pitfall": "Do not overwrite failure records with successful reruns or silently turn the run into best-of sampling. Use a new experiment directory after changing the model, prompt, runtime, or data.",
+    "source": "nemo_gym/rollout_collection.py",
+    "evidence_key": "E"
+  },
+  {
+    "id": "lifetime",
+    "title": "Submitting a file and leaving a service running need different lifecycles",
+    "stage": "Agent close / verify",
+    "symptom": "The agent confirms that an HTTP service works, but the grader gets a connection-refused error after the agent finishes.",
+    "evidence": "Historical records place the service check before agent completion and grading after it. Source review and later small reproductions show how cleanup could stop the background service. In the reproduction, cleanup happened before execute() returned, so moving close() alone was insufficient. The records do not cover every historical process ID. Keeping the service alive would not guarantee a pass.",
+    "action": "Read the task contract first. Does grading consume a file or patch, or a running service? Decide whether the service belongs to the task or the agent. Identify who keeps it alive during grading and who removes it afterward. Reproduce the boundary with a small probe that spans close(), not only a check inside the agent.",
+    "pitfall": "Stopping the agent before exporting a SWE-Pro patch makes sense. That does not mean every benchmark should kill all background services, or that skipping cleanup is a complete fix.",
+    "source": "environment_servers/single_agent_turn/app.py",
+    "evidence_key": "F"
+  },
+  {
+    "id": "usage",
+    "title": "Unknown, zero, and double-counted usage are different",
+    "stage": "Capture / usage",
+    "symptom": "The task score looks normal, but token usage is 0, null, or exactly twice the value returned by the model.",
+    "evidence": "Historical smoke tests found per-call usage added to a final cumulative total, counting it twice. They also found missing reasoning tokens. Another run kept usage unknown for 81 successful calls instead of filling it with 0.",
+    "action": "Match each actual model request to the provider’s usage record and the harness summary. Check whether each field is a per-call value or a running total. State whether the totals include the main loop, summaries or compression, delegated agents, retries, and judges. Keep missing values null and report how many calls have usage records.",
+    "pitfall": "Matching usage totals does not prove that token IDs, logprobs, or training traces are complete. A completed task can still have missing turns in its exported training data.",
+    "source": "nemo_gym/base_responses_api_model.py",
+    "evidence_key": "G"
+  },
+  {
+    "id": "fairness",
+    "title": "Compare the conditions before comparing harnesses",
+    "stage": "Study / controlled comparison",
+    "symptom": "The same model and task set yield a few more passes with harness A than B. Can we conclude that A is better?",
+    "evidence": "Historical comparisons differed in CPU and memory limits, prompts, budgets, runtimes, and interruptions. Some resource settings were scheduling reservations; others were hard container limits. Those comparisons measured the full run recipe.",
+    "action": "Pin the source, model and sampling settings, tasks and images, prompts, time limits, and actual resource limits. Report tasks graded on both sides and tasks missing from either side. Keep the original planned denominator. One repeat cannot establish that a small score gap is stable.",
+    "pitfall": "The same model name does not control every variable. One score gap is not evidence that an architecture change caused an improvement.",
+    "source": "nemo_gym/sandbox/config.py",
+    "evidence_key": "H"
+  },
+  {
+    "id": "integrity",
+    "title": "Report passes with reference-answer exposure separately",
+    "stage": "Task isolation / integrity",
+    "symptom": "The verifier gives reward 1, but the trace shows that the agent saw the official solution or hidden tests before finishing.",
+    "evidence": "A historical audit preserved original passing records with confirmed reference-answer exposure and marked them separately. It neither changed the rewards silently nor certified them as independent solutions.",
+    "action": "Check task files, mount scope, material reachable over the network, and actual tool outputs. Record what the agent saw, whether it happened before or after implementation, and which traces were audited. Define access rules and reporting criteria before the benchmark.",
+    "pitfall": "Checking that a local directory has no answers is not enough. Reviewing only some traces also does not prove that the rest were free of exposure.",
+    "source": "resources_servers/swebench_pro/app.py",
+    "evidence_key": "I"
+  },
+  {
+    "id": "diagnosis",
+    "title": "When logs go quiet, find out what the run is waiting for",
+    "stage": "During the run / final summary",
+    "symptom": "Nothing prints for a while. Or all tasks have records, but the final reporting process fails.",
+    "evidence": "Historical long tasks included buffered output and compute loops. In another run, collection finished but finalization failed from insufficient memory. HTTP 410 or exit 143 alone does not prove an OOM or eviction.",
+    "action": "Record the last successful boundary. Distinguish generation, tools, tests, resource waits, and report writing. Check timestamps, process or container state, exit reasons, and growing artifacts. Read large files line by line where possible. Preserve evidence before attempting a clearly scoped recovery.",
+    "pitfall": "A quiet page is no reason to restart every service. An error code alone does not establish the cause. Failed reporting does not erase completed tasks, and finished log syncing does not prove that evaluation ended correctly.",
+    "source": "nemo_gym/rollout_collection.py",
+    "evidence_key": "J"
+  }
+]

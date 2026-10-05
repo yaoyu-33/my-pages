@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Direct typed /run example; this does not register a flat-JSONL collector recipe.
+config_paths:
+  - resources_servers/swebench_pro/configs/swebench_pro.yaml
+  - responses_api_agents/hermes_agent/configs/hermes_agent.yaml
+  - environment_servers/single_agent_turn/configs/single_agent_turn.yaml
+
+hermes_agent:
+  responses_api_agents:
+    hermes_agent:
+      resources_server:
+        type: resources_servers
+        name: swebench_pro_resources_server
+      model: ${policy_model_name}
+      enabled_toolsets: [terminal]
+
+single_agent_turn:
+  environment_servers:
+    single_agent_turn:
+      resources_server:
+        type: resources_servers
+        name: swebench_pro_resources_server
+      agent_server:
+        type: responses_api_agents
+        name: hermes_agent

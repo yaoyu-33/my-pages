@@ -59,7 +59,7 @@
           "super().setup_webserver() 先拿到公共的 Resources 应用；app.post(\"/get_weather\")(self.get_weather) 再把当前实例的处理函数登记到路由表。登记时并不会执行 get_weather。",
           "这和用 @app.post(\"/get_weather\") 装饰函数是同一种机制。拆成两次调用，是为了登记已经绑定了 self 的 self.get_weather。"
         ],
-        "mental": "函数是店员，路由是门牌；setup_webserver 负责把门牌接到店员身上。",
+        "mental": "路由像服务窗口，函数像负责接待的店员；setup_webserver 把窗口和对应的店员关联起来。",
         "question": "把 super().setup_webserver() 换成 FastAPI() 会怎样？",
         "answer": "会得到一个空的新应用，丢掉父类注册的 /verify、session 等路由和中间件。除非你打算自己重建这些功能，否则应该沿用父类返回的 app。"
       },
@@ -138,7 +138,7 @@
         ],
         "explain": [
           "直接运行这个 app.py 时，__name__ 等于 \"__main__\"，于是调用继承来的 run_webserver。它是一个 classmethod：先有类，再由公共启动函数创建服务实例。",
-          "所以这里没有手写 uvicorn.run，也没有全局的 app = FastAPI()。这种写法依赖 Gym 提供的运行配置；直接裸跑 python app.py，它并不知道该读哪个配置实例。"
+          "所以这里没有手写 uvicorn.run，也没有全局的 app = FastAPI()。这种写法依赖 Gym 提供的运行配置；不提供配置就直接运行 python app.py，程序并不知道该读哪个实例的配置。"
         ],
         "mental": "app.py 决定“我是谁”；公共启动函数负责把这个类变成服务进程。",
         "question": "import 这个模块时，这两行会自动启动端口吗？",
@@ -234,7 +234,7 @@
         ],
         "mental": "这里有两处可能要等：本地的并发名额，和上游的推理响应。",
         "question": "看到 async with，是不是说明这个请求不用排队？",
-        "answer": "不是。获取 semaphore 本身就可能要等。它只限制同时在途的请求数，消除不了上游的排队。"
+        "answer": "不是。获取 semaphore 本身就可能要等。它只限制已经开始、尚未完成的请求数，不能消除上游的排队。"
       },
       {
         "title": "Model 的 app.py 里没写路由，去哪找？",
@@ -274,7 +274,7 @@
           65
         ],
         "explain": [
-          "resources_server 和 model_server 是带类型的服务引用，其中的 name 对应 YAML 里的实例名。它们不是直接塞进来的 Python 服务对象。",
+          "resources_server 和 model_server 是带类型的服务引用，其中的 name 对应 YAML 里的实例名。它们不是直接传入的 Python 服务对象。",
           "所以改配置里的引用就能换后端，但工具名、协议和任务评分仍然要互相匹配。max_steps 限制的是循环的轮数，不是单个 HTTP 请求的超时。"
         ],
         "mental": "Agent 是一个服务，同时也作为客户端去调用其他服务。",
@@ -305,7 +305,7 @@
         "answer": "服务引用由配置统一管理，Agent 就能接不同的模型服务，这个循环只需要专注于执行任务。"
       },
       {
-        "title": "把 tool call 变成真正的工具请求",
+        "title": "把工具调用请求变成实际的 HTTP 请求",
         "file": "responses_api_agents/simple_agent/app.py",
         "start": 214,
         "end": 225,

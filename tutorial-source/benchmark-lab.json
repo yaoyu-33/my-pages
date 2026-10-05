@@ -1,7 +1,7 @@
 [
   {
     "id": "checkout",
-    "title": "准备一份固定版本的 Gym",
+    "title": "准备一份版本固定的 Gym",
     "label": "终端 A · 一次性准备",
     "text": "先有 Python 环境和 Gym 命令，后面才能启动服务。用新目录检出本教程的版本，便于逐行对照；已有相同版本环境可以跳过安装。下面 shell 代码按 Bash 写，先在终端输入 bash。",
     "command": "git clone https://github.com/NVIDIA-NeMo/Gym.git Gym-tutorial\ncd Gym-tutorial\ngit checkout --detach 3ef478df1ee163134d32a3f291f0a9e5981d0e52\nuv venv --python 3.13.14\nuv sync --extra dev --extra sandbox\nsource .venv/bin/activate\ngym env start --help\ngym eval run --help",
@@ -89,7 +89,7 @@
     "label": "终端 B · 收集结束后",
     "text": "先看原始行，再看平均分。这里 HTTP 返回的 result 会被 Collector 展开成 rollout 顶层字段，所以 rollouts.jsonl 读取 r[\"reward\"]；第 13 章直接 curl 收到的 envelope 则读取 body[\"result\"][\"reward\"]。",
     "command": "python - <<'CHECK'\nimport json\nfrom pathlib import Path\np = Path('results/tutorial-001')\nfor line in (p / 'rollouts.jsonl').read_text().splitlines():\n    r = json.loads(line)\n    print({k: r.get(k) for k in (\n        '_ng_task_index', '_ng_rollout_index', 'reward',\n        'evaluation_completed', 'mask_sample', 'failure_reason')})\n    print('agent status:', (r.get('response') or {}).get('status'))\nfailures = p / 'rollouts_failures.jsonl'\nprint('failure rows:', len(failures.read_text().splitlines())\n      if failures.exists() else 0)\nCHECK\n\ngym eval profile \\\n  --inputs results/tutorial-001/rollouts_materialized_inputs.jsonl \\\n  --rollouts results/tutorial-001/rollouts.jsonl",
-    "expect": "得到 reward_profiling、agent_metrics、repeat_level_metrics 文件。1 次采样只用于读流程，不能说明方差或总体 benchmark 水平。profile 默认要求输入/输出完整匹配；缺失时先查 failures 和日志。",
+    "expect": "得到 reward_profiling、agent_metrics、repeat_level_metrics 文件。1 次采样只用于读流程，不能说明方差或总体 benchmark 水平。profile 默认要求输入和输出完整匹配；有缺失时，先查失败记录和日志。",
     "source": [
       "nemo_gym/rollout_collection.py",
       364,
@@ -109,6 +109,6 @@
       700,
       721
     ],
-    "code_note": "RunHelper.shutdown() 对保留的进程句柄收尾。不要用 killall/python 或停掉共享推理服务来结束一次教程运行。"
+    "code_note": "RunHelper.shutdown() 对保留的进程句柄收尾。不要为了结束教程运行，就用 killall 杀掉 Python 进程，或停掉共享推理服务。"
   }
 ]

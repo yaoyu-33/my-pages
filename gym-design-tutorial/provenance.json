@@ -1,7 +1,8 @@
 {
+  "language": "zh-CN",
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "public_source_html_sha256": "241e724bda90b709d0d8a75b3c49f34ca3e3fa3ddfafe9fc25f1bddc4441a9f8",
-  "public_html_sha256": "d13b3acddc408f059614c6539bd68add523358db49aaefcbbc738be38be6bdd5",
+  "public_source_html_sha256": "f79e002441ccd5ea0b8d34eb176ca37703e59a61c7e592ca7b76b308d2371aee",
+  "public_html_sha256": "8ec3d5438c9bf253b6cbb55b2562f5a7083b71407210961b8cb2b44c22d87194",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",
@@ -68,10 +69,11 @@
   "study_cases": 10,
   "learning_questions": 7,
   "async_mini_script_sha256": "43c635fef76b5055f25d833ab30c78aaa1a8777966bbe79f8ae96ab7ca2e702c",
-  "command_bundle_sha256": "55731113b6d1e6536d92dadd6b03b6b4cfb682dd6c33257e747db96b8510da87",
+  "command_bundle_sha256": "6c583af5d4cee3c169d872e8005c2f6b86e5d3a37769c6ea29d076c301ba91db",
   "navigation_replacements": {
-    "href=\"/\"": 3
+    "href=\"/\"": 3,
+    "home_target": "../"
   },
-  "content_changes": "Private artifact locations and internal reference URLs omitted from public inputs; see tutorial-source/public-redactions.json. Export only changes three homepage hrefs.",
+  "content_changes": "Built from reviewed public inputs; export adjusts three homepage links and adds a language switch that preserves the current section.",
   "history_scope": "Current branch content only; older public commits are not rewritten."
 }

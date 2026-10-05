@@ -1,11 +1,11 @@
 [
   {
     "id": "protocol",
-    "title": "服务 ready 了，还要检查第二轮调用",
+    "title": "服务就绪了，还要检查第二轮调用",
     "stage": "启动 / 模型协议",
     "symptom": "第一轮模型 HTTP 200，工具也执行了；把工具结果送回模型时，第二轮却返回 422。",
-    "evidence": "历史多 harness smoke 里，第二轮 assistant 消息中的 reasoning 字段不被接收端 schema 接受。外层接口仍可能给出 HTTP 200 / reward 0，只看最外层状态会误判。",
-    "action": "smoke 至少走完“模型 → 工具 → 工具结果 → 模型 → verifier”。记录哪个组件返回错误、原始状态和响应体；流式调用还要检查终止事件，HTTP 200 后也可能出现 response.failed。",
+    "evidence": "历史上对多个 harness 的小规模试跑中，第二轮 assistant 消息中的 reasoning 字段不被接收端 schema 接受。外层接口仍可能给出 HTTP 200 / reward 0，只看最外层状态会误判。",
+    "action": "小规模试跑至少要走完“模型 → 工具 → 工具结果 → 模型 → verifier”。记录哪个组件返回错误、原始状态和响应体；流式调用还要检查终止事件，HTTP 200 后也可能出现 response.failed。",
     "pitfall": "别把 health check、能列出 models 或一次简单问答，当成多轮工具协议已经兼容。",
     "source": "nemo_gym/base_responses_api_model.py",
     "evidence_key": "A"
@@ -50,7 +50,7 @@
     "symptom": "日志里有几百次 retry，并不代表几百道题重新生成了答案。",
     "evidence": "一份完整审计保留 731 个原始任务尝试，同时记录 403 次仅 verifier 的重试，复用已生成的 patch。另有恢复方案保留原始与恢复两种统计视图，不挑较高 reward。",
     "action": "写清重试层次：传输重试是否重复远程操作；verifier 重试是否仍评分同一 patch；episode 重跑是否产生新答案与 attempt。提前固定恢复集合和纳入规则，保留失败和成功原件。",
-    "pitfall": "不要用重跑成功覆盖失败记录，或偷偷变成 best-of。改模型、prompt、runtime 或数据之后，应另开实验目录。",
+    "pitfall": "不要用重跑成功覆盖失败记录，也不要悄悄改成只取多次运行中的最好结果（best-of）。改模型、prompt、runtime 或数据之后，应另开实验目录。",
     "source": "nemo_gym/rollout_collection.py",
     "evidence_key": "E"
   },
@@ -89,23 +89,23 @@
   },
   {
     "id": "integrity",
-    "title": "原始 pass 和无参考答案暴露的 pass 分开说",
+    "title": "原始通过结果，要与未接触参考答案的通过结果分开报告",
     "stage": "任务隔离 / integrity",
     "symptom": "verifier 给了 reward 1，但轨迹显示 agent 在完成任务前拿到了官方 solution 或隐藏测试内容。",
     "evidence": "历史审计保留了确认参考答案暴露的原始通过记录，并单独标注；没有悄悄改 reward，也没有将其认证为独立解题通过。",
     "action": "检查任务文件、挂载范围、网络可见资料和真实工具输出。记录看到什么、发生在实现前还是之后、审计覆盖哪些轨迹。提前定义 benchmark 的访问规则与报告口径。",
-    "pitfall": "只查本地目录没有答案不够；只审部分轨迹，也不能推断其余全部没有污染。",
+    "pitfall": "只查本地目录没有答案不够；只审部分轨迹，也不能据此认定其余轨迹都没有接触参考答案或隐藏测试。",
     "source": "resources_servers/swebench_pro/app.py",
     "evidence_key": "I"
   },
   {
     "id": "diagnosis",
-    "title": "没有新日志时，先找它在等什么",
+    "title": "没有新日志时，先确认程序在等什么",
     "stage": "运行中 / 最终汇总",
     "symptom": "一段时间没有输出；或者所有题都有记录了，最终汇总进程才失败。",
     "evidence": "历史长任务存在缓冲输出和计算循环；另一次完整收集后，finalization 因内存不足失败。单独的 HTTP 410 / exit 143，也不足以证明 OOM 或 eviction。",
     "action": "记录最后一个成功边界，区分生成、工具、测试、资源等待和写报告。看时间戳、进程/容器状态、退出原因与 artifacts 增长；大文件统计尽量逐行读取。先保留证据，再做有边界的恢复。",
-    "pitfall": "不要因页面安静就重启所有服务，也不要只看报错码猜原因。汇总失败不抹掉已完成题目；日志同步 finished 也不代表评估正确结束。",
+    "pitfall": "不要因页面安静就重启所有服务，也不要只看报错码猜原因。汇总失败不抹掉已完成题目；日志同步完成，也不代表评估正确结束。",
     "source": "nemo_gym/rollout_collection.py",
     "evidence_key": "J"
   }

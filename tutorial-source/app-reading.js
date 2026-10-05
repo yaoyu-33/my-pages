@@ -33,9 +33,9 @@
   'valid city':['合法 city → 200','reply','路由匹配、city 校验通过，get_weather 构造对象；HTTP 层返回 JSON。这个实现固定返回 cold。'],
   'missing city':['漏掉 city → 422','validate','输入模型要求 city。FastAPI 在执行 get_weather 之前拒绝请求，并由 HTTP 层返回错误详情。'],
   'wrong city type':['city 写成数字 → 422','validate','这个版本的输入校验不把数字 7 自动当作字符串 city；业务函数尚未执行。以实际 schema 和响应为准。'],
-  'GET is not POST':['把 POST 写成 GET → 405','route','路径存在，但没有给它注册 GET。请求停在 method 匹配，get_weather 没有执行；HTTP 层返回 405。'],
+  'GET is not POST':['把 POST 写成 GET → 405','route','路径存在，但没有给它注册 GET。请求停在 HTTP 方法匹配这一步，get_weather 没有执行；HTTP 层返回 405。'],
   'unregistered route':['请求 get_humidity → 404','route','这里没有 /get_humidity 路由。仅在模型 tools 中声明名称，不会自动生成服务端实现。'],
-  'verify: weather call':['评分：有 tool call → reward 1','reply','这份 fixture 含 get_weather function_call。评分函数返回 reward=1；这只证明它满足这个评分器的条件。'],
+  'verify: weather call':['评分：有工具调用 → reward 1','reply','这份测试输入含 get_weather function_call。评分函数返回 reward=1；这只证明它满足这个评分器的条件。'],
   'verify: text without weather call':['评分：只有文字 → reward 0','reply','HTTP 200 表示接口成功处理了请求；reward=0 表示没有满足评分条件。服务成功和任务得分是两个维度。'],
   'verify: missing response':['评分：缺 response → 422','validate','BaseVerifyRequest 必须含 response。输入校验失败，SimpleWeatherVerifier.verify 尚未执行。']
  };
@@ -45,7 +45,7 @@
   document.querySelectorAll('[data-http-stop]').forEach((node,i)=>{node.classList.toggle('is-passed',i<stopIndex||i===3);node.classList.toggle('is-stopped',i===stopIndex&&record.status>=400);node.classList.toggle('is-pending',i>stopIndex&&i<3);});
   byId('app-http-status-code').textContent=record.status;byId('app-http-status-code').classList.toggle('error',record.status>=400);
   byId('app-http-explain').textContent=explanation;byId('app-http-request-title').textContent=`${record.method} ${record.path}`;
-  byId('app-http-request').textContent=record.request===null?'（没有 request body）':JSON.stringify(record.request,null,2);
+  byId('app-http-request').textContent=record.request===null?'（没有请求正文）':JSON.stringify(record.request,null,2);
   byId('app-http-response').textContent=JSON.stringify(record.response,null,2);
  }
  byId('app-http-case').addEventListener('change',renderHttp);byId('app-http-python').textContent=evidence.python;

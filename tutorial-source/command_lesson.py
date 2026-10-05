@@ -37,7 +37,7 @@ def render(root: Path, source: Path) -> str:
 <div class="command-title"><span class="command-number">{i:02}</span><div><div class="kicker">{esc(s['label'])}</div><h4>{esc(s['title'])}</h4></div></div>
 <p>{esc(s['text'])}</p><div class="splitline"><span class="small">COMMAND · Bash</span><button class="copy" data-copy="command-code-{i}">复制</button></div>
 <pre><code class="lab-shell" id="command-code-{i}">{esc(s['command'])}</code></pre>
-<div class="command-expect"><b>看到什么才算这一步完成？</b><p>{esc(s['expect'])}</p></div>
+<div class="command-expect"><b>怎样确认这一步完成了？</b><p>{esc(s['expect'])}</p></div>
 <details><summary>一起看源码：{esc(path)} · L{start}–{end}</summary><p>{esc(s['code_note'])}</p>
 <pre><code class="lab-source" data-file="{esc(path)}" data-start="{start}" data-end="{end}">{esc(numbered)}</code></pre>
 <p class="sources"><a data-src="{esc(path)}" data-line="{start}">打开固定版本的完整文件</a></p></details></article>''')
@@ -45,7 +45,7 @@ def render(root: Path, source: Path) -> str:
         ('native-hermes.yaml', '连接 Environment / Resources / Hermes'),
         ('model-provider.yaml', '连接模型和 OpenSandbox'),
         ('lab.yaml', '可达地址、Head、单题并发'),
-        ('prepare-tutorial-tasks.py', '把 prepared rows 变成原生 tasks'),
+        ('prepare-tutorial-tasks.py', '把准备好的数据行转换成原生任务输入'),
     ]))
     return result.replace('@@COMMAND_STEPS@@', '\n'.join(cards)).replace('@@COMMAND_CONFIGS@@', configs).replace('@@COMMAND_JUMPS@@', ''.join(
         f'<a href="#command-{s["id"]}">{i} · {esc(s["title"].split("，")[0])}</a>' for i, s in enumerate(steps, 1))).replace('@@COMMAND_BUNDLE@@', base64.b64encode(bundle).decode()).replace('@@COMMAND_BUNDLE_SHA@@', hashlib.sha256(bundle).hexdigest())

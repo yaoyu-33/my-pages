@@ -1,0 +1,37 @@
+# Benchmark run log (public version)
+
+## 1. Pin the experiment conditions
+- Goal / hypothesis:
+- Code revision / harness version / installed version:
+- Data revision / task manifest hash / image digest:
+- Public model name (use an anonymous label if needed) / configuration fingerprint:
+- Prompt / sampling / token budget / timeout:
+- Actual CPU, memory, and network limits (not just scheduler reservations):
+- Differences between groups / known limits to the comparison:
+
+## 2. Identity and coverage
+- Run label / taskset / task_id / rollout_id / attempt:
+- Planned / returned / original reward available / verifier finished:
+- All required tests have results / agent completed / confirmed passes:
+- Pass rate over all planned tasks / pass rate among scored tasks / unscored count:
+- Original rewards and masks preserved; rules for derived statistics:
+
+## 3. Failure events (one entry per event)
+- Stage + relative time + last successful boundary:
+- Observed symptom / original error type or status:
+- Confirmed cause / unconfirmed hypotheses:
+- Evidence ID (use anonymous references in public; omit internal file paths):
+- Retry layer: HTTP / verifier (same patch) / episode (new attempt):
+- Decision, recovery set, and how original and recovered results are preserved:
+
+## 4. Scoring, traces, and integrity
+- Do required test IDs, raw test output, and parser status agree?
+- Usage scope: main loop / auxiliary calls / retries / judge:
+- Known usage / unknown usage / missing calls or tool outputs:
+- Exposure to solutions or hidden tests; audit scope and limits:
+
+## 5. Cleanup and next steps
+- Agent close / which services must stay alive for grading / evidence of provider resource cleanup:
+- Are result files, input snapshots, failure records, and summary reports complete?
+- What this run proved / what it did not prove / the next specific check:
+- Public version omits internal hosts, addresses, clusters, queues, accounts, absolute paths, job IDs, and credentials:

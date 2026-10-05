@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+config_paths:
+  - tutorial-lab/native-hermes.yaml
+  - tutorial-lab/model-provider.yaml
+
+# Use an address assigned to this machine and reachable from the Linux sandbox.
+default_host: ${oc.env:GYM_HOST}
+# Run the Collector on this same machine; Head discovery defaults to this address.
+head_server:
+  host: 127.0.0.1
+  port: 11000
+
+single_agent_turn:
+  environment_servers:
+    single_agent_turn:
+      max_concurrent_episodes: 1

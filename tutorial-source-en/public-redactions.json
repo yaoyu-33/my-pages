@@ -1,0 +1,21 @@
+{
+  "scope": "Current published tree only; historical Git objects are not rewritten.",
+  "policy": "No private cluster/host addresses, private evidence URLs or machine artifact paths.",
+  "redactions": {
+    "build.py": {
+      "private_urls": 1
+    },
+    "evidence.json": {
+      "private_paths": 5
+    },
+    "index.template.html": {
+      "board_links": 4,
+      "companion_links": 3,
+      "private_urls": 1
+    },
+    "native-evidence.json": {
+      "private_paths": 3
+    }
+  },
+  "retained": "Task/test evidence, public source pins, original results and explicit limits; no raw logs added."
+}

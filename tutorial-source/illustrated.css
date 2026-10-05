@@ -11,3 +11,6 @@ main{max-width:1530px;padding-top:36px}h1,h2,h3{color:var(--ink)}h1{font-size:cl
 @media(max-width:360px){main{padding-left:15px;padding-right:15px}.hero-grid{grid-template-columns:1fr 82px}.hero-copy h1{font-size:31px}.buddy-caption{display:none}.diagram{padding:20px 13px}.diagram h3{font-size:18px}.d-node{padding:14px 7px}.d-node b{font-size:12px}.journey-map,.config-map,.team-map{column-gap:20px}.d-node small{font-size:11px}.diagram-head{margin-bottom:19px}.comparison-chain{flex-wrap:wrap}.comparison-chain>.part-stack{flex-basis:100%;margin-top:5px}.comparison-chain>.join:last-of-type{display:none}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 @media print{body{background:white}.diagram{box-shadow:none;break-inside:avoid}.hero-buddy{max-width:130px}.diagram-links path{stroke:#555}.hero-line{display:none}.section-num{transform:none}.diagram:before{display:none}}
+
+/* Keep the home link on one line in both languages. */
+.topline>a{white-space:nowrap;flex-shrink:0}

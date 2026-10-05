@@ -1,0 +1,15 @@
+{
+  "result": "PASS",
+  "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
+  "checks": [
+    "8 Bash blocks and helper Python syntax",
+    "downloaded converter: 2 tasks, limit=1, verifier-field preservation and overwrite rejection",
+    "offline full composition: exactly one native Environment; references, reachable host and local Head",
+    "real Collector planning: 2 tasks \u00d7 2 repeats, typed requests, attempt identity, flat/unmapped rejection",
+    "real result unwrapping/failure conversion and synthetic reward profiling: mean 0.5 on two tasks",
+    "5 actual CLI parsers/dispatch targets; --no-serve selects collect_rollouts"
+  ],
+  "model_calls": 0,
+  "services_started": 0,
+  "scope": "Synthetic offline contract checks; no upstream dataset preparation, real server startup, sandbox or model benchmark run."
+}
