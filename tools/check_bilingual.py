@@ -31,7 +31,8 @@ class Page(HTMLParser):
             self.ids.append(values['id'])
         if values.get('data-src'):
             self.sources.append((values['data-src'], values.get('data-line')))
-        stable = tuple(sorted((key, value) for key, value in attrs if key.startswith('data-')))
+        # Mermaid edge coordinates depend on translated label widths; IDs and edges still match.
+        stable = tuple(sorted((key, value) for key, value in attrs if key.startswith('data-') and key != 'data-points'))
         if stable:
             self.controls.append((tag, stable))
 
@@ -55,6 +56,10 @@ def main() -> None:
     for key in ['source_sha','files_sha256','evidence_sha256','http_evidence_sha256',
                 'async_mini_script_sha256','app_reading_steps','command_steps','study_cases','learning_questions']:
         assert manifests[0][key] == manifests[1][key], key
+    assert manifests[0]['interactions']['source'] == manifests[1]['interactions']['source']
+    for folder, manifest in zip([zh, en], manifests):
+        for name, expected in manifest['interactions']['assets_sha256'].items():
+            assert hashlib.sha256((folder/name).read_bytes()).hexdigest() == expected, name
     for name in ['native-evidence.json','weather-http-evidence.json','async-mini-evidence.json',
                  'evidence.json','command-validation.json','example-validation.json',
                  'native-hermes.yaml','model-provider.yaml','lab.yaml','prepare-tutorial-tasks.py',

@@ -1,0 +1,40 @@
+{
+  "theme": "base",
+  "securityLevel": "strict",
+  "htmlLabels": false,
+  "deterministicIds": true,
+  "deterministicIDSeed": "gym-interactions-v11",
+  "themeVariables": {
+    "fontFamily": "Arial, PingFang SC, sans-serif",
+    "fontSize": "16px",
+    "primaryColor": "#e0f0e8",
+    "primaryTextColor": "#263c38",
+    "primaryBorderColor": "#6a9b8a",
+    "lineColor": "#526f68",
+    "secondaryColor": "#f9ecd5",
+    "tertiaryColor": "#eee8f6",
+    "actorBkg": "#e0f0e8",
+    "actorBorder": "#6a9b8a",
+    "actorTextColor": "#263c38",
+    "signalColor": "#526f68",
+    "signalTextColor": "#263c38",
+    "noteBkgColor": "#fff1d6",
+    "noteTextColor": "#55462f",
+    "noteBorderColor": "#d7bd81"
+  },
+  "flowchart": {
+    "htmlLabels": false,
+    "nodeSpacing": 28,
+    "rankSpacing": 45,
+    "curve": "basis",
+    "wrappingWidth": 260
+  },
+  "sequence": {
+    "useMaxWidth": true,
+    "wrap": true,
+    "actorMargin": 70,
+    "width": 160,
+    "messageMargin": 30,
+    "mirrorActors": false
+  }
+}

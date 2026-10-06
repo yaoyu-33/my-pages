@@ -10,6 +10,7 @@ import textwrap
 from command_lesson import render as render_command_lesson
 from study_lesson import render as render_study_lesson
 from learning_guide import enhance as enhance_learning
+from interaction_guide import enhance as enhance_interactions
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -78,6 +79,7 @@ for name, markup in zip(parts[1::2], parts[2::2]):
 template = template.replace('@@ILLUSTRATED_CSS@@', (ROOT / 'illustrated.css').read_text())
 template = template.replace('@@ILLUSTRATED_JS@@', (ROOT / 'illustrated.js').read_text())
 template = enhance_learning(template, ROOT)
+template, interaction_manifest = enhance_interactions(template, ROOT)
 for path in sorted(set(re.findall(r'data-src="([^"]+)"', template))):
     p = SOURCE / path
     if not p.is_file():
@@ -114,6 +116,7 @@ assert not re.search(r'@@\w+@@', template)
 (ROOT / 'index.html').write_text(template)
 (ROOT / 'source-manifest.json').write_text(json.dumps({
     'source_sha': SHA, 'files_sha256': source_manifest,
+    'interactions': interaction_manifest,
     'html_sha256': hashlib.sha256(template.encode()).hexdigest(),
     'http_evidence_sha256': hashlib.sha256((ROOT / 'weather-http-evidence.json').read_bytes()).hexdigest(),
     'app_reading_steps': sum(len(e['steps']) for e in examples),

@@ -40,6 +40,7 @@ destination.mkdir(parents=True, exist_ok=True)
 (destination/'index.html').write_text(public)
 provenance = {
     'language': a.language,
+    'interactions': manifest['interactions'],
     'source_sha': manifest['source_sha'],
     'public_source_html_sha256': sha(source),
     'public_html_sha256': sha(public.encode()),

@@ -1,8 +1,43 @@
 {
   "language": "zh-CN",
+  "interactions": {
+    "source": {
+      "guide_pr": 3917,
+      "guide_sha": "d40a554c0d9dad9cc1769c9246a2f4fd8bca380a",
+      "guide_status_at_review": "OPEN",
+      "checked_date": "2026-10-06",
+      "implementation_sha": "cbb3e0658b90e730bfb2802fa77c8dc8b78dcc85",
+      "implementation_pr": 3961,
+      "implementation_status": "MERGED",
+      "scope": "Diagram and source review only; historical examples and run evidence retain their original revisions.",
+      "guide_file": "fern/versions/latest/pages/agent-server/add-or-update-a-harness.mdx",
+      "guide_file_sha256": "a6e5e7d831e6e2818fca2c4dede963eba23801ae78f3fffcbcc5142a2d4d9ee7",
+      "files_sha256": {
+        "environment_servers/single_agent_turn/app.py": "cf9b0658a26257110592f602f65d3b231cc2886281e634355777d4f884ffc6fa",
+        "nemo_gym/agent_utils/sandbox_session.py": "4e16903f33f2766880f87f6dbf514f0d66b994e0e74d81a5b37d799a24b9548f",
+        "nemo_gym/agent_utils/supervisor_client.py": "98c0ad9529d4a98192cc3bcd86b05835150c25bd7ba8b29b045dde85e1577a98",
+        "nemo_gym/agent_utils/process_supervisor.py": "99feade59d8d0734de9da5f68d72e51c72ae6e405bc3dd68080b43c1aaf6de6a",
+        "nemo_gym/sandbox/utils.py": "c963577bdc895300b2f45898c22bc90738ba7ffcc921be6ac945bd8a94890944",
+        "responses_api_agents/hermes_agent/app.py": "cb5e9e0294ad8d4732bc2311362d737c6fac345c8c1714ab499afcd5395c9332",
+        "responses_api_agents/hermes_agent/sandbox.py": "f398cd8bdf8fc6825f2473179035076d8555b34b157ea78b2c2025098435cfe4",
+        "responses_api_agents/hermes_agent/sandbox_runner.py": "7eae3ada16be32dd7d6a38a44b09151a40113cfba067db83d193c064bccfdd56",
+        "resources_servers/swebench_pro/app.py": "21e2c864ebff86723bc1c035a9d9c61941e17c4f412cab2d3b7440900cde526d"
+      },
+      "adaptations": [
+        "Tutorial colors and bilingual labels; arrow/node structure retained.",
+        "Sequence qualifies final sandbox stop and notes SWE-Pro patch extraction and separate grading sandbox."
+      ]
+    },
+    "assets_sha256": {
+      "interaction-architecture.svg": "08fd1811758787200b36662d78292929c73b928fa5872f2079916c4d02548f01",
+      "interaction-architecture.mmd": "ea68ddd31147463f2df33183d5042bf348abfd3722a60f76fa60f7125e4e3a98",
+      "interaction-sequence.svg": "733fb2c90438349636e62790fd68277a9df1b8e3fbf21b2dde4035ef0704f328",
+      "interaction-sequence.mmd": "883475ab799a341360c35eb389eae5c0ef8229a998348a669f058a777ed13c67"
+    }
+  },
   "source_sha": "3ef478df1ee163134d32a3f291f0a9e5981d0e52",
-  "public_source_html_sha256": "f79e002441ccd5ea0b8d34eb176ca37703e59a61c7e592ca7b76b308d2371aee",
-  "public_html_sha256": "8ec3d5438c9bf253b6cbb55b2562f5a7083b71407210961b8cb2b44c22d87194",
+  "public_source_html_sha256": "c2784bfedb1bd6359be468c5ba51e932e5a9cc4ff02f5f5222269f3aab9a267e",
+  "public_html_sha256": "4518fea59a6fbaa7c1c9c4096461fe67e410c9f06c24e53a14e307d5e6a9e28f",
   "files_sha256": {
     "AGENTS.md": "f9efdad44b78564ca9d01f87ca47d493df109a9a2316c9eed622e18900cbc887",
     "benchmarks/swebench/pro/hermes.yaml": "bdd37786d44b7f43073bb877b260779c51878e5ea0ef26dda1439e64daae9465",

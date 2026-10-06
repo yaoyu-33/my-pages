@@ -6,7 +6,7 @@
 
 The tutorial is available in Chinese and English. Both editions use a weather-tool example to explain Gym's contracts,
 serving and async, server `app.py`, startup, repository structure, core design,
-and SWE-Pro × Hermes with Harbor comparisons. It has 16 chapters, 15 diagrams,
+and SWE-Pro × Hermes with Harbor comparisons. It has 16 chapters, 17 diagrams,
 a guided 15-step code reader and an eight-step benchmark command lab.
 The learning layer adds three study routes, a linked weather tool-call example,
 seven feedback questions and a standard-library async lab. Configuration precedence
@@ -29,6 +29,29 @@ This is editorial/source review and local validation, not a reader-learning stud
 The English edition was reviewed by agents who did not write the sections they
 reviewed. The Chinese edition received a separate language review. Both use
 common wording and short explanations while keeping searchable API names.
+
+## Interaction diagrams from PR #3917
+
+Chapter 9 adds the Agent Server/sandbox code map. Chapter 10 adds the service
+request sequence. Both include a reading guide, larger-label controls, and SVG
+and Mermaid downloads. The diagrams separate HTTP, Python calls, provider
+operations, subprocess/signals, and local files. Dashed boxes remain planned
+installer and common mount helpers.
+
+Adapted from NVIDIA-NeMo/Gym [PR #3917](https://github.com/NVIDIA-NeMo/Gym/pull/3917)
+at `d40a554c0d9dad9cc1769c9246a2f4fd8bca380a` (open when checked on October 6).
+The implementation was checked at merged #3961,
+`cbb3e0658b90e730bfb2802fa77c8dc8b78dcc85`. These additions have a separate source
+record in `interaction-source.json`; the rest of the tutorial keeps its older
+source and evidence pins. In the sequence, an added SWE-Pro note explains that
+verification exports the patch and stops task sandbox A before grading in B.
+The last stop arrow applies only if a sandbox remains. This is source review,
+not a new benchmark or a claim that every provider pairing works.
+
+The Mermaid source is Apache-2.0, like the upstream Gym repository; attribution
+and revision are preserved. Both languages received independent review.
+Pre-rendered SVGs are embedded in the standalone HTML, with no Mermaid runtime
+or external assets loaded by readers. Text steps remain available without JS.
 
 ## Content and provenance
 
@@ -138,3 +161,25 @@ Pattern checks supplement manual review; they cannot certify arbitrary logs.
 
 Changing a source pin requires re-reading cited code and updating affected links
 and explanations. Do not reinterpret an old smoke as evidence for a new revision.
+
+## Regenerate the interaction diagrams
+
+Keep the matching `.mmd`, `.svg`, config and reading guide in each source tree.
+The normal Python build embeds the checked-in SVGs; it does not require Node.
+After editing Mermaid, render it with Mermaid CLI 12.0.0, for example:
+
+```sh
+npx --yes --package @mermaid-js/mermaid-cli@12.0.0 mmdc \
+  -i tutorial-source-en/interaction-sequence.mmd \
+  -o tutorial-source-en/interaction-sequence.svg \
+  -c tutorial-source-en/interaction-mermaid.json \
+  -I interaction-sequence-svg --no-font-embed -b transparent
+```
+
+Repeat for `architecture` and Chinese `tutorial-source`. The renderer needs
+a compatible Chromium; use its `-p` option to select an existing installation
+if needed. Keep that machine-specific config outside the public repository.
+Rebuild/export both pages, inspect labels/arrows at normal and enlarged sizes,
+and run parity/privacy checks. The parity check ignores Mermaid edge coordinates
+(which change with label width), while comparing node/edge identifiers.
+`provenance.json` includes diagram-source pins and exact SVG/Mermaid hashes.

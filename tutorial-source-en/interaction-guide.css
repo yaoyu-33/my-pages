@@ -1,0 +1,12 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+/* SPDX-License-Identifier: Apache-2.0 */
+.interaction-lesson{margin:36px 0;padding-top:26px;border-top:2px solid var(--line);scroll-margin-top:150px}
+.interaction-version{font-size:13px;line-height:1.8;padding:12px 16px;background:#f1eee7;border-radius:12px}
+.interaction-figure{padding:20px;min-width:0}.interaction-figure figcaption{font-weight:600;line-height:1.7;margin-bottom:14px}
+.interaction-controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.interaction-controls button,.interaction-controls a{font:inherit;font-size:13px;padding:7px 12px;border:1px solid var(--line);border-radius:20px;background:var(--paper,#fffaf2);color:var(--green);text-decoration:none;cursor:pointer}
+.interaction-controls button[aria-pressed=true]{background:var(--green);color:#fff}.interaction-controls button:focus-visible,.interaction-controls a:focus-visible,.interaction-viewport:focus-visible{outline:3px solid #a575bf;outline-offset:3px}
+.interaction-viewport{max-height:680px;overflow:auto;border:1px solid #ddd7cc;border-radius:12px;background:#fffdf8;overscroll-behavior:contain}
+.interaction-canvas{width:100%;padding:14px;box-sizing:border-box}.interaction-canvas>svg{display:block;width:100%!important;max-width:none!important;height:auto!important}
+.interaction-reading{padding-left:24px;line-height:1.9}.interaction-reading li{margin-bottom:12px;padding-left:5px}.interaction-sources{line-height:2;overflow-wrap:anywhere}
+@media(max-width:600px){.interaction-figure{padding:12px}.interaction-viewport{max-height:520px}.interaction-canvas{min-width:0}.interaction-version{padding:10px 12px}}
+@media print{.interaction-controls,.interaction-mermaid{display:none!important}.interaction-viewport{overflow:visible;max-height:none;border:0}.interaction-canvas{width:100%!important;min-width:0!important}.interaction-figure{break-inside:auto}.interaction-lesson{break-inside:auto}.interaction-reading li{break-inside:avoid}}

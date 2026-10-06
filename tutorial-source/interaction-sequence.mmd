@@ -1,0 +1,34 @@
+%% Adapted from NVIDIA-NeMo/Gym PR #3917 at d40a554c0d9dad9cc1769c9246a2f4fd8bca380a; Apache-2.0.
+sequenceDiagram
+    participant E as Environment Server<br/>环境编排 · FastAPI
+    participant R as Resources Server<br/>任务与评分 · FastAPI
+    participant A as Agent Server<br/>适配层 · FastAPI
+    participant S as 任务 sandbox<br/>provider 提供运行环境
+    participant M as Model Server<br/>模型代理 · FastAPI
+
+    Note over R,S: Provider 示例： OpenSandbox HTTP(S), OpenShell gRPC,<br/>Docker CLI, Local subprocess
+    E->>R: HTTP/JSON: POST /seed_session
+    R->>S: Provider API/CLI：创建、执行、上传
+    R-->>E: HTTP/JSON: SandboxAccess
+    E->>A: HTTP/JSON: POST /v1/agent_sessions
+    A->>S: Provider exec/files：复用或安装 runtime
+    E->>A: HTTP/JSON: POST .../v1/responses
+    A->>S: Provider upload + exec：写入输入，启动 supervisor
+    loop 模型与工具调用
+        S->>M: HTTP/JSON: POST .../v1/chat/completions
+        M-->>S: HTTP/JSON：模型返回
+        S->>S: SDK / 本地子进程：执行工具
+    end
+    A->>S: Provider exec：停止并确认进程树已清理
+    S-->>A: Provider download：cleanup.json（清理记录）
+    A->>S: Provider download：收集输出与观测记录
+    S-->>A: 文件内容：harness JSON 与产物
+    A-->>E: HTTP/JSON：Responses API 结果
+    E->>A: HTTP/JSON: POST /v1/agent_sessions/close
+    A->>S: Provider exec + disconnect：释放借用会话
+    A-->>E: HTTP/JSON：关闭结果与观测记录
+    E->>R: HTTP/JSON: POST /verify
+    Note over R,S: SWE-Pro：导出 patch，停止任务 sandbox A，<br/>再在新 sandbox B 内评分（未画出）
+    R-->>E: HTTP/JSON：reward 与评分证据
+    E->>R: HTTP/JSON: POST /close_session
+    R->>S: Provider API/CLI：停止仍然存在的 sandbox

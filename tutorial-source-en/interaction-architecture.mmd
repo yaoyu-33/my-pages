@@ -1,0 +1,53 @@
+%% Adapted from NVIDIA-NeMo/Gym PR #3917 at d40a554c0d9dad9cc1769c9246a2f4fd8bca380a; Apache-2.0.
+flowchart TB
+    ENTRY["Environment Server or API client"]
+
+    subgraph AS["Agent Server: FastAPI endpoints and Python helpers"]
+        APP["app.py: HTTP/JSON endpoints, mapping and dispatch"]
+        LOCAL["Host harness: SDK or CLI"]
+        ADAPTER["sandbox.py: harness-specific session and hooks"]
+        SESSION["agent_utils/sandbox_session.py: SandboxSession lifecycle"]
+        INSTALL["harness_install.py: ensure runtime (planned)"]
+        CLIENT["agent_utils/supervisor_client.py: shell and file protocol"]
+        FILES["sandbox/utils.py: upload_text and read_text"]
+        PROVIDER["AsyncSandbox / provider<br/>Examples: OpenSandbox HTTP(S)<br/>OpenShell gRPC<br/>Docker CLI / Local subprocess"]
+        APP -->|"Python SDK / subprocess; no agent session"| LOCAL
+        APP -->|"Episode session"| ADAPTER
+        ADAPTER -->|"install_runtime at seed"| INSTALL
+        ADAPTER -->|"execute with stage_activation/collect; close"| SESSION
+        SESSION --> CLIENT
+        ADAPTER --> FILES
+        CLIENT --> FILES
+        INSTALL -->|"exec + upload: runtime setup"| PROVIDER
+        SESSION -->|"upload: supervisor source"| PROVIDER
+        CLIENT -->|"exec: launch / stop shell command"| PROVIDER
+        FILES -->|"upload / download: file bytes"| PROVIDER
+    end
+
+    ENTRY -->|"HTTP/JSON: Responses API + session endpoints"| APP
+    MOUNTS["Common runtime mount configuration (planned)"]
+
+    subgraph SB["Task sandbox"]
+        RUNTIME["Pinned harness runtime"]
+        SUPERVISOR["process_supervisor.py: process lifetime"]
+        SHIM["sandbox_runner.py: harness shim"]
+        HARNESS["Harness SDK or CLI and its tools"]
+        CLEANUP["cleanup.json"]
+        OUTPUT["Harness output and optional diagnostics"]
+        SUPERVISOR -->|"Subprocess argv + OS signals"| SHIM
+        SHIM -->|"Python SDK / CLI subprocess"| HARNESS
+        RUNTIME -->|"Provides executable and dependencies"| HARNESS
+        SUPERVISOR -->|"Local file I/O: JSON receipt"| CLEANUP
+        SHIM -->|"Local file I/O: JSON output"| OUTPUT
+    end
+
+    PROVIDER -->|"Provider exec/files: install or reuse"| RUNTIME
+    MOUNTS -->|"Filesystem mount at creation"| RUNTIME
+    PROVIDER -->|"Provider upload + exec: launch / stop"| SUPERVISOR
+    PROVIDER -.->|"Provider download: JSON receipt"| CLEANUP
+    PROVIDER -.->|"Provider download: harness artifacts"| OUTPUT
+    HARNESS -->|"HTTP/JSON: Chat Completions for Hermes"| MODEL["Gym Model Server: FastAPI"]
+    LOCAL -->|"HTTP/JSON: harness model API"| MODEL
+
+    classDef planned stroke-dasharray: 5 5;
+    class INSTALL,MOUNTS planned;

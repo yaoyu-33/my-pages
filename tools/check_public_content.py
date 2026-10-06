@@ -45,7 +45,7 @@ def main() -> None:
     failures = []
     count = 0
     for path in paths:
-        if not path.is_file() or path.suffix not in {'.md','.html','.json','.yaml','.py','.txt','.css','.js'}:
+        if not path.is_file() or path.suffix not in {'.md','.html','.json','.yaml','.py','.txt','.css','.js','.svg','.mmd'}:
             continue
         failures.extend(inspect_text(path.read_text(),str(path.relative_to(args.root))))
         count += 1

@@ -1,0 +1,34 @@
+%% Adapted from NVIDIA-NeMo/Gym PR #3917 at d40a554c0d9dad9cc1769c9246a2f4fd8bca380a; Apache-2.0.
+sequenceDiagram
+    participant E as Environment Server<br/>(FastAPI)
+    participant R as Resources Server<br/>(FastAPI)
+    participant A as Agent Server<br/>(FastAPI adapter)
+    participant S as Task sandbox<br/>(provider runtime)
+    participant M as Model Server<br/>(FastAPI)
+
+    Note over R,S: Provider examples: OpenSandbox HTTP(S), OpenShell gRPC,<br/>Docker CLI, Local subprocess
+    E->>R: HTTP/JSON: POST /seed_session
+    R->>S: Provider API/CLI: create, exec, upload
+    R-->>E: HTTP/JSON: SandboxAccess
+    E->>A: HTTP/JSON: POST /v1/agent_sessions
+    A->>S: Provider exec/files: reuse or install runtime
+    E->>A: HTTP/JSON: POST .../v1/responses
+    A->>S: Provider upload + exec: stage input, launch supervisor
+    loop Model and tool calls
+        S->>M: HTTP/JSON: POST .../v1/chat/completions
+        M-->>S: HTTP/JSON: model response
+        S->>S: SDK / local subprocess: execute tools
+    end
+    A->>S: Provider exec: stop/check process-tree cleanup
+    S-->>A: Provider download: cleanup.json (JSON receipt)
+    A->>S: Provider download: collect output and observations
+    S-->>A: File bytes: harness JSON and artifacts
+    A-->>E: HTTP/JSON: Responses API result
+    E->>A: HTTP/JSON: POST /v1/agent_sessions/close
+    A->>S: Provider exec + disconnect: release session
+    A-->>E: HTTP/JSON: close result and observations
+    E->>R: HTTP/JSON: POST /verify
+    Note over R,S: SWE-Pro: export patch, stop task sandbox A,<br/>then grade in fresh sandbox B (not drawn)
+    R-->>E: HTTP/JSON: reward and grading evidence
+    E->>R: HTTP/JSON: POST /close_session
+    R->>S: Provider API/CLI: stop sandbox if still present

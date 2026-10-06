@@ -22,6 +22,7 @@ INPUTS = (
     'weather-http-evidence.json', 'weather-lab.py',
     'learning-guide.html', 'learning-guide.json', 'learning-guide.css', 'learning-guide.js',
     'learning_guide.py', 'async-mini-lab.py', 'async-mini-evidence.json',
+    'interaction-architecture.mmd', 'interaction-architecture.svg', 'interaction-guide.css', 'interaction-guide.html', 'interaction-guide.js', 'interaction-mermaid.json', 'interaction-sequence.mmd', 'interaction-sequence.svg', 'interaction-source.json', 'interaction_guide.py',
     'run-log-lessons.html', 'run-log-lessons.json', 'run-log-template.txt', 'study_lesson.py',
 )
 PRIVATE_URL = re.compile(

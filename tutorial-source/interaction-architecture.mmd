@@ -1,0 +1,53 @@
+%% Adapted from NVIDIA-NeMo/Gym PR #3917 at d40a554c0d9dad9cc1769c9246a2f4fd8bca380a; Apache-2.0.
+flowchart TB
+    ENTRY["Environment Server 或 API 客户端"]
+
+    subgraph AS["Agent Server：FastAPI 接口与 Python 辅助代码"]
+        APP["app.py：HTTP/JSON 接口、转换与分发"]
+        LOCAL["宿主机 harness：SDK 或 CLI"]
+        ADAPTER["sandbox.py：harness 专用会话与 hooks"]
+        SESSION["agent_utils/sandbox_session.py：管理生命周期"]
+        INSTALL["harness_install.py：准备 runtime（规划中）"]
+        CLIENT["agent_utils/supervisor_client.py：shell 与文件协议"]
+        FILES["sandbox/utils.py：upload_text 与 read_text"]
+        PROVIDER["AsyncSandbox / provider<br/>例如： OpenSandbox HTTP(S)<br/>OpenShell gRPC<br/>Docker CLI / Local subprocess"]
+        APP -->|"Python SDK / 子进程；无 agent session"| LOCAL
+        APP -->|"Episode 会话"| ADAPTER
+        ADAPTER -->|"seed 时调用 install_runtime"| INSTALL
+        ADAPTER -->|"execute 调用 stage_activation/collect；close"| SESSION
+        SESSION --> CLIENT
+        ADAPTER --> FILES
+        CLIENT --> FILES
+        INSTALL -->|"exec + upload：准备 runtime"| PROVIDER
+        SESSION -->|"upload：supervisor 源码"| PROVIDER
+        CLIENT -->|"exec：启动 / 停止的 shell 命令"| PROVIDER
+        FILES -->|"upload / download：文件内容"| PROVIDER
+    end
+
+    ENTRY -->|"HTTP/JSON：Responses API 与 session 接口"| APP
+    MOUNTS["跨 provider 的 runtime 挂载配置（规划中）"]
+
+    subgraph SB["任务 sandbox"]
+        RUNTIME["固定版本的 harness runtime"]
+        SUPERVISOR["process_supervisor.py：管理进程生命周期"]
+        SHIM["sandbox_runner.py：调用 harness 的小程序"]
+        HARNESS["Harness SDK / CLI 及其工具"]
+        CLEANUP["cleanup.json"]
+        OUTPUT["Harness 输出与可选诊断信息"]
+        SUPERVISOR -->|"子进程 argv + 操作系统信号"| SHIM
+        SHIM -->|"Python SDK / CLI 子进程"| HARNESS
+        RUNTIME -->|"提供可执行程序与依赖"| HARNESS
+        SUPERVISOR -->|"本地文件读写：JSON 清理记录"| CLEANUP
+        SHIM -->|"本地文件读写：JSON 输出"| OUTPUT
+    end
+
+    PROVIDER -->|"Provider exec/files：安装或复用"| RUNTIME
+    MOUNTS -->|"创建时挂载文件系统"| RUNTIME
+    PROVIDER -->|"Provider upload + exec：启动 / 停止"| SUPERVISOR
+    PROVIDER -.->|"Provider download：JSON 清理记录"| CLEANUP
+    PROVIDER -.->|"Provider download：harness 产物"| OUTPUT
+    HARNESS -->|"HTTP/JSON：Hermes 使用 Chat Completions"| MODEL["Gym Model Server：FastAPI"]
+    LOCAL -->|"HTTP/JSON：harness 的模型 API"| MODEL
+
+    classDef planned stroke-dasharray: 5 5;
+    class INSTALL,MOUNTS planned;
